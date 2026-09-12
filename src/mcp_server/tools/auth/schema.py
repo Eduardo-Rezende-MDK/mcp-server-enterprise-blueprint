@@ -9,6 +9,7 @@ class AuthAction(str, Enum):
     """Operações determinísticas de autenticação e gestão de tokens."""
 
     SETUP = "setup"
+    RESET = "reset"
     TOKEN_GENERATOR = "token_generator"
     SET_TOKEN = "set_token"
     GET_TOKEN = "get_token"
@@ -19,8 +20,8 @@ class AuthInput(BaseModel):
 
     action: AuthAction = Field(
         default=AuthAction.GET_TOKEN,
-        description="Ação de autenticação a executar: 'setup', 'token_generator', 'set_token' ou 'get_token'",
-        examples=["set_token", "get_token", "token_generator"],
+        description="Ação de autenticação a executar: 'setup', 'reset', 'token_generator', 'set_token' ou 'get_token'",
+        examples=["set_token", "get_token", "token_generator", "reset"],
     )
     name: Optional[str] = Field(
         default=None,
@@ -36,6 +37,11 @@ class AuthInput(BaseModel):
         default=None,
         description="Bearer Token de acesso com prefixo 'mcp_live_' (validado em 'get_token' ou atribuído em 'set_token')",
         examples=["mcp_live_a1b2c3d4e5f6789012345678abcdef01"],
+    )
+    role: Optional[str] = Field(
+        default="lead",
+        description="Perfil de acesso e permissão: 'admin' (acesso total) ou 'lead' (acesso restrito às ferramentas de consumo)",
+        examples=["admin", "lead"],
     )
     provider: Optional[str] = Field(
         default="local",
@@ -56,6 +62,7 @@ class AuthOutput(BaseModel):
     message: str = Field(..., description="Mensagem descritiva do resultado da operação")
     action: str = Field(..., description="Ação executada")
     token: Optional[str] = Field(default=None, description="Bearer Token gerado ou retornado")
+    role: Optional[str] = Field(default=None, description="Perfil de acesso do usuário ('admin' ou 'lead')")
     user: Optional[Dict[str, Any]] = Field(default=None, description="Dicionário com os dados cadastrais do usuário")
     is_valid: Optional[bool] = Field(default=None, description="Indica se o token consultado é válido e ativo no perímetro")
     error: Optional[str] = Field(default=None, description="Mensagem de erro detalhada em caso de falha")

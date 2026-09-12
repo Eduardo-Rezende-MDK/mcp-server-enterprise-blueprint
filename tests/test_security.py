@@ -142,3 +142,26 @@ class TestRateLimiter:
         allowed_ip2, remaining_ip2 = limiter.is_allowed(ip2, current_time=t0 + 2)
         assert allowed_ip2 is True
         assert remaining_ip2 == 1
+
+
+class TestRbacPermissions:
+    """Testes de Controle de Acesso Baseado em Papéis (RBAC)."""
+
+    def test_admin_role_allows_all_tools(self):
+        from mcp_server.security import is_tool_allowed_for_role, ADMIN_ONLY_TOOLS, PUBLIC_TOOLS
+        for tool in ADMIN_ONLY_TOOLS | PUBLIC_TOOLS:
+            assert is_tool_allowed_for_role(tool, "admin") is True
+
+    def test_lead_role_blocks_admin_tools(self):
+        from mcp_server.security import is_tool_allowed_for_role, ADMIN_ONLY_TOOLS, PUBLIC_TOOLS
+        for tool in ADMIN_ONLY_TOOLS:
+            assert is_tool_allowed_for_role(tool, "lead") is False
+        for tool in PUBLIC_TOOLS:
+            assert is_tool_allowed_for_role(tool, "lead") is True
+
+    def test_marduka_token_metadata_is_admin(self):
+        from mcp_server.security import get_token_metadata, MARDUKA_ADMIN_TOKEN
+        meta = get_token_metadata(f"Bearer {MARDUKA_ADMIN_TOKEN}")
+        assert meta is not None
+        assert meta["role"] == "admin"
+        assert meta["email"] == "du.rezende@gmail.com"

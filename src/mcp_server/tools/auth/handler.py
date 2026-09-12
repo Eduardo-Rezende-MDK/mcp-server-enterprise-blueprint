@@ -21,6 +21,11 @@ def _validate_email(email: str) -> bool:
     return bool(re.match(pattern, email.strip()))
 
 
+ADMIN_NAME = "Eduardo Rezende"
+ADMIN_EMAIL = "du.rezende@gmail.com"
+ADMIN_TOKEN = "mcp_live_3333755c29cca946c481079b3cd60625"
+
+
 def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
     """Executa operações determinísticas de ciclo de vida de autenticação e tokens."""
     if isinstance(params, dict):
@@ -38,22 +43,66 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             action=action.value,
             message="Token criptográfico gerado com sucesso.",
             token=token,
+            role="lead",
         ).model_dump()
 
-    # 2. SETUP E TESTE DO REDIS
-    if action == AuthAction.SETUP:
-        ping_res = execute_redis({"action": "ping"})
-        if ping_res.get("success"):
-            return AuthOutput(
-                success=True,
-                action=action.value,
-                message="Infraestrutura de autenticação em Redis validada e operacional.",
-            ).model_dump()
+    # 2. SETUP E RESET TOTAL DO REDIS (BOOTSTRAP ADMIN MARDUKA)
+    if action in (AuthAction.SETUP, AuthAction.RESET):
+        # A) Limpar todas as chaves de autenticação antigas
+        keys_res = execute_redis({"action": "keys", "pattern": "auth:*"})
+        deleted_count = 0
+        if keys_res.get("success") and isinstance(keys_res.get("keys"), list):
+            for k in keys_res.get("keys"):
+                del_res = execute_redis({"action": "del", "key": k})
+                if del_res.get("success"):
+                    deleted_count += 1
+        
+        # Garante remoção de chaves fixas
+        execute_redis({"action": "del", "key": "auth:users:index"})
+
+        # B) Criar usuário Admin Master com Token Fixo MARDUKA
+        now = datetime.now(timezone.utc).isoformat()
+        admin_data = {
+            "name": ADMIN_NAME,
+            "email": ADMIN_EMAIL,
+            "token": ADMIN_TOKEN,
+            "role": "admin",
+            "provider": "local",
+            "google_id": "",
+            "status": "active",
+            "created_at": now,
+            "last_login_at": now,
+        }
+
+        # 1. Salva o Hash do Admin no Redis
+        execute_redis({
+            "action": "hset",
+            "key": f"auth:user:{ADMIN_EMAIL}",
+            "fields": admin_data,
+        })
+
+        # 2. Salva o índice de busca rápida O(1) por Token
+        execute_redis({
+            "action": "set",
+            "key": f"auth:token:{ADMIN_TOKEN}",
+            "value": admin_data,
+        })
+
+        # 3. Registra no Set de Usuários
+        execute_redis({
+            "action": "sadd",
+            "key": "auth:users:index",
+            "member": ADMIN_EMAIL,
+        })
+
         return AuthOutput(
-            success=False,
+            success=True,
             action=action.value,
-            message="Falha ao inicializar infraestrutura de autenticação no Redis.",
-            error=ping_res.get("error", "Erro de conexão com Redis"),
+            message=f"Infraestrutura de autenticação resetada ({deleted_count} chaves limpas). Usuário Admin '{ADMIN_NAME}' ({ADMIN_EMAIL}) configurado e token MARDUKA ativado com sucesso.",
+            token=ADMIN_TOKEN,
+            role="admin",
+            user=admin_data,
+            is_valid=True,
         ).model_dump()
 
     # 3. CADASTRO DE USUÁRIO E PERSISTÊNCIA DE TOKEN (SET_TOKEN)
@@ -77,8 +126,13 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
                 error="E-mail inválido ou ausente",
             ).model_dump()
 
+        # Define a role: se for o email de admin ou explicitamente passado, é admin; senão é lead
+        role = input_data.role or ("admin" if email == ADMIN_EMAIL else "lead")
+        if email == ADMIN_EMAIL:
+            role = "admin"
+
         # Token fornecido ou novo gerado automaticamente
-        token = (input_data.token or "").strip() or generate_secure_token()
+        token = (input_data.token or "").strip() or (ADMIN_TOKEN if email == ADMIN_EMAIL else generate_secure_token())
         provider = input_data.provider or "local"
         google_id = input_data.google_id or ""
         now = datetime.now(timezone.utc).isoformat()
@@ -97,6 +151,7 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             "name": name,
             "email": email,
             "token": token,
+            "role": role,
             "provider": provider,
             "google_id": google_id,
             "status": "active",
@@ -128,8 +183,9 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
         return AuthOutput(
             success=True,
             action=action.value,
-            message=f"Usuário '{name}' ({email}) registrado e token ativado com sucesso.",
+            message=f"Usuário '{name}' ({email}) registrado com perfil '{role}' e token ativado com sucesso.",
             token=token,
+            role=role,
             user=user_data,
         ).model_dump()
 
@@ -145,11 +201,13 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             user_data = token_res.get("result")
 
             if user_data and isinstance(user_data, dict) and user_data.get("status") == "active":
+                role = user_data.get("role") or ("admin" if user_data.get("email") == ADMIN_EMAIL else "lead")
                 return AuthOutput(
                     success=True,
                     action=action.value,
                     message="Token autenticado e ativo no perímetro.",
                     token=token,
+                    role=role,
                     user=user_data,
                     is_valid=True,
                 ).model_dump()
@@ -159,6 +217,7 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
                 action=action.value,
                 message="Token não encontrado ou inativo.",
                 token=token,
+                role=None,
                 user=None,
                 is_valid=False,
             ).model_dump()
@@ -169,11 +228,13 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             user_data = user_res.get("data") or {}
 
             if user_data and user_data.get("status") == "active":
+                role = user_data.get("role") or ("admin" if email == ADMIN_EMAIL else "lead")
                 return AuthOutput(
                     success=True,
                     action=action.value,
                     message=f"Usuário '{email}' localizado com sucesso.",
                     token=user_data.get("token"),
+                    role=role,
                     user=user_data,
                     is_valid=True,
                 ).model_dump()

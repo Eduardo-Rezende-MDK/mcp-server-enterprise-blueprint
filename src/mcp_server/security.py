@@ -7,45 +7,92 @@ from typing import Any, Optional
 RATE_LIMIT_PER_HOUR = 60
 RATE_LIMIT_WINDOW_SECONDS = 3600
 
+# Ferramentas Restritas a Administradores (RBAC)
+ADMIN_ONLY_TOOLS = {"auth", "redis", "send_mail"}
+PUBLIC_TOOLS = {"calc", "benchmark_cost", "sqlite", "hello", "discover"}
 
-def validate_bearer_token(authorization_header: Optional[str]) -> bool:
-    """Valida se o cabeçalho Authorization contém um Bearer Token ativo no Redis ou prefixo mcp_live_ válido.
+MARDUKA_ADMIN_TOKEN = "mcp_live_3333755c29cca946c481079b3cd60625"
+
+
+def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
+    """Valida o Bearer Token e retorna o dicionário com os dados cadastrais do usuário (incluindo role).
     
     Args:
         authorization_header: Valor do cabeçalho HTTP Authorization (ex: 'Bearer mcp_live_...')
         
     Returns:
-        True se o token for válido e aceito no perímetro, False caso contrário.
+        Dicionário com dados do usuário ('name', 'email', 'role', 'status') ou None se inválido.
     """
     if not authorization_header or not isinstance(authorization_header, str):
-        return False
-    
+        return None
+
     parts = authorization_header.strip().split()
     if len(parts) != 2:
-        return False
-    
+        return None
+
     prefix, token = parts
     if prefix.lower() != "bearer":
-        return False
-    
+        return None
+
     token = token.strip()
     if not token:
-        return False
+        return None
 
-    # 1. Validação perimetral no Redis
+    # 1. Token Mestre Fixo MARDUKA (Admin Supremo)
+    if token == MARDUKA_ADMIN_TOKEN:
+        return {
+            "name": "Eduardo Rezende",
+            "email": "du.rezende@gmail.com",
+            "token": token,
+            "role": "admin",
+            "status": "active",
+        }
+
+    # 2. Consulta no Redis O(1)
     try:
         from .tools.auth.handler import execute as execute_auth
         auth_res = execute_auth({"action": "get_token", "token": token})
         if auth_res.get("success") and auth_res.get("is_valid"):
-            return True
+            user_data = auth_res.get("user") or {}
+            role = auth_res.get("role") or user_data.get("role") or "lead"
+            user_data["role"] = role
+            return user_data
     except Exception:
         pass
 
-    # 2. Resiliência serverless multi-isolate Edge: aceita tokens oficiais gerados pelo portal
+    # 3. Fallback perimetral para tokens mcp_live_ válidos no Edge
     if token.startswith("mcp_live_") and len(token) >= 20:
-        return True
+        return {
+            "name": "Lead User",
+            "email": "lead@mcp.io",
+            "token": token,
+            "role": "lead",
+            "status": "active",
+        }
 
-    return False
+    return None
+
+
+def validate_bearer_token(authorization_header: Optional[str]) -> bool:
+    """Valida se o cabeçalho Authorization contém um Bearer Token ativo no Redis ou prefixo mcp_live_ válido."""
+    return get_token_metadata(authorization_header) is not None
+
+
+def is_tool_allowed_for_role(tool_name: str, role: Optional[str]) -> bool:
+    """Verifica se a ferramenta pode ser executada pelo perfil de acesso (role).
+    
+    Args:
+        tool_name: Nome da ferramenta (ex: 'auth', 'calc')
+        role: Perfil do usuário ('admin' ou 'lead')
+        
+    Returns:
+        True se a execução for permitida, False caso seja restrita a administradores.
+    """
+    if role == "admin":
+        return True
+    if tool_name in ADMIN_ONLY_TOOLS:
+        return False
+    return True
 
 
 def extract_client_ip(headers: Any) -> str:

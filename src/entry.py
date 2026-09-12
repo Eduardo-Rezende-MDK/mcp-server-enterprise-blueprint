@@ -10,7 +10,13 @@ from js import Headers, Response
 from urllib.parse import urlparse
 
 from mcp_server.registry import TOOL_DEFINITIONS, dispatch_tool
-from mcp_server.security import extract_client_ip, rate_limiter, validate_bearer_token
+from mcp_server.security import (
+    extract_client_ip,
+    get_token_metadata,
+    is_tool_allowed_for_role,
+    rate_limiter,
+    validate_bearer_token,
+)
 from mcp_server.ui.portal import (
     get_portal_html,
     handle_google_login,
@@ -31,10 +37,12 @@ def create_cors_headers(content_type: str = "application/json; charset=utf-8") -
     return headers
 
 
-def format_mcp_tools_list():
-    """Formata o catálogo de ferramentas no padrão oficial do protocolo MCP."""
+def format_mcp_tools_list(role: str = "admin"):
+    """Formata o catálogo de ferramentas no padrão oficial do protocolo MCP filtrando por perfil/role."""
     tools = []
     for tool in TOOL_DEFINITIONS:
+        if not is_tool_allowed_for_role(tool.name, role):
+            continue
         doc_dict = tool.documentation.model_dump() if hasattr(tool.documentation, "model_dump") else tool.documentation
         tools.append({
             "name": tool.name,
@@ -207,7 +215,8 @@ async def on_fetch(request, env):
             elif isinstance(request.headers, dict):
                 auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
 
-            if not validate_bearer_token(auth_header):
+            user_meta = get_token_metadata(auth_header)
+            if not user_meta:
                 unauthorized_error = {
                     "jsonrpc": "2.0",
                     "id": rpc_id,
@@ -218,21 +227,35 @@ async def on_fetch(request, env):
                 }
                 return Response.new(json.dumps(unauthorized_error, ensure_ascii=False), status=401, headers=headers)
 
-            # Listagem de Tools Protegida: tools/list
+            user_role = user_meta.get("role", "lead")
+
+            # Listagem de Tools Protegida: tools/list (Filtrada por perfil/role)
             if rpc_method == "tools/list":
                 response_data = {
                     "jsonrpc": "2.0",
                     "id": rpc_id,
                     "result": {
-                        "tools": format_mcp_tools_list(),
+                        "tools": format_mcp_tools_list(role=user_role),
                     },
                 }
                 return Response.new(json.dumps(response_data, ensure_ascii=False), status=200, headers=headers)
 
-            # Invocação de Tools Protegida: tools/call
+            # Invocação de Tools Protegida: tools/call (com validação estrita de RBAC)
             if rpc_method == "tools/call":
                 tool_name = params.get("name")
                 args = params.get("arguments", {})
+
+                # 🛡️ Bloqueio Perimetral de RBAC
+                if not is_tool_allowed_for_role(tool_name, user_role):
+                    forbidden_error = {
+                        "jsonrpc": "2.0",
+                        "id": rpc_id,
+                        "error": {
+                            "code": -32003,
+                            "message": f"Acesso negado: a ferramenta '{tool_name}' é restrita a administradores (role='admin'). Seu perfil de acesso é '{user_role}'.",
+                        },
+                    }
+                    return Response.new(json.dumps(forbidden_error, ensure_ascii=False), status=403, headers=headers)
 
                 try:
                     tool_output = dispatch_tool(tool_name, args)

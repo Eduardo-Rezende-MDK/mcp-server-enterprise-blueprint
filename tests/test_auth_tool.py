@@ -13,18 +13,21 @@ def test_auth_token_generator():
 
 
 def test_auth_setup():
-    """Valida o handshake de setup com o backend Redis."""
+    """Valida o handshake de setup e bootstrap do admin MARDUKA."""
     res = dispatch_tool("auth", {"action": "setup"})
     assert res["success"] is True
-    assert "operacional" in res["message"].lower() or "validada" in res["message"].lower()
+    assert res["role"] == "admin"
+    assert res["token"] == "mcp_live_3333755c29cca946c481079b3cd60625"
+    assert res["user"]["email"] == "du.rezende@gmail.com"
+    assert res["user"]["role"] == "admin"
 
 
 def test_auth_set_token_and_get_token():
-    """Valida o cadastro de usuário com Nome e E-mail e subsequente validação de token."""
+    """Valida o cadastro de usuário com Nome e E-mail e subsequente validação de token e role."""
     user_email = "lead.enterprise@empresa.com"
     user_name = "Eduardo Rezende"
 
-    # 1. Cadastra usuário e gera token
+    # 1. Cadastra usuário e gera token com role lead
     set_res = dispatch_tool("auth", {
         "action": "set_token",
         "name": user_name,
@@ -33,8 +36,10 @@ def test_auth_set_token_and_get_token():
     })
     assert set_res["success"] is True
     assert set_res["token"].startswith("mcp_live_")
+    assert set_res["role"] == "lead"
     assert set_res["user"]["name"] == user_name
     assert set_res["user"]["email"] == user_email
+    assert set_res["user"]["role"] == "lead"
     assert set_res["user"]["status"] == "active"
 
     generated_token = set_res["token"]
