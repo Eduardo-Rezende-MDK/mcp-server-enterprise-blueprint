@@ -1,18 +1,14 @@
 """Serverless Entrypoint for Cloudflare Workers in Native Python.
 
-Exposes the MCP Enterprise Server deterministically over HTTP and JSON-RPC 2.0.
+Exposes the MCP Enterprise Server deterministically over HTTP and JSON-RPC 2.0 with Bearer Authentication and Rate Limiting.
 """
 
 import json
 from datetime import datetime, timezone
 from js import Headers, Response
 
-from mcp_server.registry import TOOL_DEFINITIONS
-from mcp_server.schemas.calc import CalcInput
-from mcp_server.schemas.hello import HelloInput
-from mcp_server.tools.calc import execute_calc
-from mcp_server.tools.discover import execute_discover
-from mcp_server.tools.hello import execute_hello
+from mcp_server.registry import TOOL_DEFINITIONS, dispatch_tool
+from mcp_server.security import extract_client_ip, rate_limiter, validate_bearer_token
 
 
 def create_cors_headers() -> Headers:
@@ -29,12 +25,13 @@ def format_mcp_tools_list():
     """Formata o catálogo de ferramentas no padrão oficial do protocolo MCP."""
     tools = []
     for tool in TOOL_DEFINITIONS:
+        doc_dict = tool.documentation.model_dump() if hasattr(tool.documentation, "model_dump") else tool.documentation
         tools.append({
             "name": tool.name,
             "description": tool.description,
             "inputSchema": tool.inputSchema,
             "outputSchema": tool.outputSchema,
-            "documentation": tool.documentation.model_dump(),
+            "documentation": doc_dict,
         })
     return tools
 
@@ -50,16 +47,41 @@ async def on_fetch(request, env):
 
     headers = create_cors_headers()
 
-    # 2. Rota de Health Check / Info (GET)
+    # 2. ⏱️ Proteção Perimetral — Rate Limiting (60 req/h por IP)
+    client_ip = extract_client_ip(request.headers)
+    allowed, remaining = rate_limiter.is_allowed(client_ip)
+    if not allowed:
+        rate_limit_error = {
+            "jsonrpc": "2.0",
+            "id": None,
+            "error": {
+                "code": -32029,
+                "message": "Limite de requisições atingido: máximo de 60 chamadas por hora por IP.",
+            },
+        }
+        return Response.new(json.dumps(rate_limit_error, ensure_ascii=False), status=429, headers=headers)
+
+    # 3. Rota de Health Check / Info (GET)
     if method == "GET":
+        tool_names = [t.name for t in TOOL_DEFINITIONS]
         info_payload = {
             "status": "online",
             "server": "mcp-server-enterprise",
             "version": "1.0.0",
             "runtime": "Cloudflare Workers Python (Pyodide Edge)",
             "protocolVersion": "2024-11-05",
+            "auth": {
+                "required": True,
+                "type": "Bearer",
+                "header": "Authorization: Bearer rezende",
+            },
+            "rate_limit": {
+                "limit": 60,
+                "remaining": remaining,
+                "window": "1h",
+            },
             "tools_count": len(TOOL_DEFINITIONS),
-            "tools": ["discover", "hello", "calc"],
+            "tools": tool_names,
             "endpoints": {
                 "rpc": "POST / (JSON-RPC 2.0)",
                 "sse": "GET /sse (Server-Sent Events)",
@@ -68,7 +90,7 @@ async def on_fetch(request, env):
         }
         return Response.new(json.dumps(info_payload, indent=2, ensure_ascii=False), status=200, headers=headers)
 
-    # 3. Rota de Processamento JSON-RPC 2.0 (POST)
+    # 4. Rota de Processamento JSON-RPC 2.0 (POST)
     if method == "POST":
         try:
             body_text = await request.text()
@@ -84,7 +106,7 @@ async def on_fetch(request, env):
             rpc_method = rpc_request.get("method")
             params = rpc_request.get("params", {})
 
-            # 3.1. Handshake: initialize
+            # 4.1. Handshake: initialize (Permitido para negociação de capacidades)
             if rpc_method == "initialize":
                 response_data = {
                     "jsonrpc": "2.0",
@@ -103,11 +125,29 @@ async def on_fetch(request, env):
                 }
                 return Response.new(json.dumps(response_data, ensure_ascii=False), status=200, headers=headers)
 
-            # 3.2. Notificação: notifications/initialized
+            # 4.2. Notificação: notifications/initialized
             if rpc_method == "notifications/initialized":
                 return Response.new("", status=204, headers=headers)
 
-            # 3.3. Listagem de Tools: tools/list
+            # 4.3. 🛡️ Verificação de Bearer Auth para métodos protegidos (tools/list e tools/call)
+            auth_header = None
+            if hasattr(request.headers, "get"):
+                auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+            elif isinstance(request.headers, dict):
+                auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+
+            if not validate_bearer_token(auth_header):
+                unauthorized_error = {
+                    "jsonrpc": "2.0",
+                    "id": rpc_id,
+                    "error": {
+                        "code": -32000,
+                        "message": "Acesso não autorizado: Bearer Token ausente ou inválido.",
+                    },
+                }
+                return Response.new(json.dumps(unauthorized_error, ensure_ascii=False), status=401, headers=headers)
+
+            # 4.4. Listagem de Tools Protegida: tools/list
             if rpc_method == "tools/list":
                 response_data = {
                     "jsonrpc": "2.0",
@@ -118,20 +158,14 @@ async def on_fetch(request, env):
                 }
                 return Response.new(json.dumps(response_data, ensure_ascii=False), status=200, headers=headers)
 
-            # 3.4. Invocação de Tools: tools/call
+            # 4.5. Invocação de Tools Protegida: tools/call (Despacho Dinâmico)
             if rpc_method == "tools/call":
                 tool_name = params.get("name")
                 args = params.get("arguments", {})
 
-                if tool_name == "discover":
-                    tool_output = execute_discover().model_dump()
-                elif tool_name == "hello":
-                    validated_input = HelloInput(**args)
-                    tool_output = execute_hello(validated_input).model_dump()
-                elif tool_name == "calc":
-                    validated_input = CalcInput(**args)
-                    tool_output = execute_calc(validated_input).model_dump()
-                else:
+                try:
+                    tool_output = dispatch_tool(tool_name, args)
+                except KeyError:
                     return Response.new(
                         json.dumps({
                             "jsonrpc": "2.0",

@@ -1,12 +1,8 @@
 """Main entry point for MCP Enterprise Server using FastMCP."""
 
 from fastmcp import FastMCP
-
-from .schemas.calc import CalcInput, OperacaoEnum
-from .schemas.hello import HelloInput
-from .tools.calc import execute_calc
-from .tools.discover import execute_discover
-from .tools.hello import execute_hello
+from .registry import dispatch_tool
+from .tools.calc.schema import OperacaoEnum
 
 # Inicialização do Servidor FastMCP
 mcp = FastMCP(
@@ -20,8 +16,7 @@ mcp = FastMCP(
 )
 def discover() -> dict:
     """Lista todas as ferramentas do catálogo com documentação estendida."""
-    result = execute_discover()
-    return result.model_dump()
+    return dispatch_tool("discover", {})
 
 
 @mcp.tool(
@@ -30,9 +25,7 @@ def discover() -> dict:
 )
 def hello(name: str) -> dict:
     """Retorna saudação com carimbo de data e hora do sistema."""
-    input_data = HelloInput(name=name)
-    result = execute_hello(input_data)
-    return result.model_dump()
+    return dispatch_tool("hello", {"name": name})
 
 
 @mcp.tool(
@@ -41,9 +34,7 @@ def hello(name: str) -> dict:
 )
 def calc(valor1: float, valor2: float, operacao: OperacaoEnum) -> dict:
     """Executa cálculo aritmético determinístico (+, -, *, /)."""
-    input_data = CalcInput(valor1=valor1, valor2=valor2, operacao=operacao)
-    result = execute_calc(input_data)
-    return result.model_dump()
+    return dispatch_tool("calc", {"valor1": valor1, "valor2": valor2, "operacao": operacao})
 
 
 def run_server() -> None:

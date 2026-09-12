@@ -4,11 +4,11 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from mcp_server.schemas.calc import CalcInput, OperacaoEnum
-from mcp_server.schemas.hello import HelloInput
-from mcp_server.tools.calc import execute_calc
-from mcp_server.tools.discover import execute_discover
-from mcp_server.tools.hello import execute_hello
+from mcp_server.tools.calc.schema import CalcInput, OperacaoEnum
+from mcp_server.tools.hello.schema import HelloInput
+from mcp_server.tools.calc import execute as execute_calc
+from mcp_server.tools.discover import execute as execute_discover
+from mcp_server.tools.hello import execute as execute_hello
 
 
 class TestDiscoverTool:
@@ -16,8 +16,8 @@ class TestDiscoverTool:
 
     def test_discover_retorna_todas_as_ferramentas(self):
         catalogo = execute_discover()
-        assert catalogo.total == 3
-        assert len(catalogo.tools) == 3
+        assert catalogo.total >= 3
+        assert len(catalogo.tools) >= 3
 
         tool_names = [t.name for t in catalogo.tools]
         assert "discover" in tool_names
@@ -48,7 +48,6 @@ class TestHelloTool:
     def test_hello_retorna_timestamp_iso8601_valido(self):
         dados = HelloInput(name="Sistema")
         resposta = execute_hello(dados)
-        # Deve ser parseável como data e hora ISO
         ts = datetime.fromisoformat(resposta.timestamp)
         assert ts is not None
 

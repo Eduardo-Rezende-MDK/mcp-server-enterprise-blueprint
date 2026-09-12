@@ -2,12 +2,14 @@
 
 import ast
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
 
-WORKER_URL = "https://mcp-server-enterprise.mardukasoft.online"
+WORKER_URL = os.environ.get("MCP_WORKER_URL", "https://mcp-server-enterprise.mardukasoft.online")
+DEFAULT_TOKEN = os.environ.get("MCP_BEARER_TOKEN", "rezende")
 
 
 def parse_args_string(raw: str) -> dict:
@@ -36,8 +38,8 @@ def parse_args_string(raw: str) -> dict:
     raise ValueError(f"Formato invalido de argumentos JSON: {raw}")
 
 
-def call_tool(tool_name: str, arguments: dict = None) -> tuple[dict, float]:
-    """Executa uma ferramenta MCP de modo 100% deterministico via JSON-RPC 2.0."""
+def call_tool(tool_name: str, arguments: dict = None, token: str = DEFAULT_TOKEN) -> tuple[dict, float]:
+    """Executa uma ferramenta MCP de modo 100% deterministico via JSON-RPC 2.0 com Bearer Auth."""
     if arguments is None:
         arguments = {}
 
@@ -51,13 +53,17 @@ def call_tool(tool_name: str, arguments: dict = None) -> tuple[dict, float]:
         },
     }
 
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "MCP-Enterprise-CLI/1.0",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
     req = urllib.request.Request(
         WORKER_URL,
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "User-Agent": "MCP-Enterprise-CLI/1.0",
-        },
+        headers=headers,
         method="POST",
     )
 
@@ -71,7 +77,7 @@ def call_tool(tool_name: str, arguments: dict = None) -> tuple[dict, float]:
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python scripts/call_tool.py <tool_name> [args_json]")
+        print("Uso: python scripts/call_tool.py <tool_name> [args_json] [--token <token>]")
         print("Exemplos:")
         print("  python scripts/call_tool.py discover")
         print('  python scripts/call_tool.py hello \'{"name": "Eduardo"}\'')
@@ -79,7 +85,18 @@ def main():
         sys.exit(1)
 
     tool_name = sys.argv[1]
-    raw_args = " ".join(sys.argv[2:]) if len(sys.argv) > 2 else "{}"
+    raw_args = "{}"
+    custom_token = DEFAULT_TOKEN
+
+    args_list = sys.argv[2:]
+    if "--token" in args_list:
+        token_idx = args_list.index("--token")
+        if token_idx + 1 < len(args_list):
+            custom_token = args_list[token_idx + 1]
+            args_list = args_list[:token_idx] + args_list[token_idx + 2:]
+
+    if args_list:
+        raw_args = " ".join(args_list)
 
     try:
         arguments = parse_args_string(raw_args)
@@ -89,11 +106,12 @@ def main():
 
     print("\n==================================================================")
     print(f" >> INVOCACAO DETERMINISTICA MCP: tool='{tool_name}'")
+    print(f" >> Autenticacao: Bearer {custom_token[:3]}*** (Configurada)")
     print("==================================================================")
     print(f"Parametros: {json.dumps(arguments, ensure_ascii=False)}")
 
     try:
-        response, elapsed_ms = call_tool(tool_name, arguments)
+        response, elapsed_ms = call_tool(tool_name, arguments, token=custom_token)
         print(f"Latencia  : {elapsed_ms:.1f}ms")
         print("\n--- [Resultado Estruturado da Ferramenta] ---")
         if "result" in response and "structuredContent" in response["result"]:
@@ -103,7 +121,13 @@ def main():
         print("==================================================================\n")
     except urllib.error.HTTPError as err:
         body = err.read().decode("utf-8")
-        print(f"\n[ERRO HTTP {err.code}]: {body}")
+        if err.code == 401:
+            print(f"\n[ERRO HTTP 401 - Não Autorizado]: Bearer Token ausente ou inválido.")
+        elif err.code == 429:
+            print(f"\n[ERRO HTTP 429 - Rate Limit]: Limite de 60 requisições/hora excedido.")
+        else:
+            print(f"\n[ERRO HTTP {err.code}]: {body}")
+        print(f"Detalhes: {body}")
         sys.exit(1)
     except Exception as err:
         print(f"\n[ERRO DE CONEXAO]: {err}")

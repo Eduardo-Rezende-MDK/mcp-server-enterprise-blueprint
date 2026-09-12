@@ -1,6 +1,6 @@
 # 📋 Especificação e Planejamento: Servidor MCP Enterprise em Python (FastMCP)
 
-> **Status:** 100% Implementado, Testado e Deployado no Cloudflare Edge  
+> **Status:** 100% Implementado, Testado e Validado  
 > **Nome do Servidor:** `mcp-server-enterprise`  
 > **URL de Produção:** `https://mcp-server-enterprise.mardukasoft.online`  
 > **Diretório do Código:** `src/mcp_server/`  
@@ -11,8 +11,8 @@
 
 ## 🏛️ 1. Racional de Engenharia (Cognitivo vs. Determinístico)
 
-- **🧠 Camada Cognitiva (LLM):** Responsável apenas por interpretação de linguagem natural, extração de intenções e decisão de qual ferramenta invocar (probabilístico).
-- **⚙️ Camada Determinística (FastMCP / Python):** Responsável pela validação estrita de tipos (Pydantic v2), cálculos matemáticos exatos, formatações e regras de negócio sem risco de alucinação (100% determinístico e testável).
+- **🧠 Camada Cognitiva (LLM):** Responsável pela interpretação de linguagem natural, extração de intenções do usuário e decisão semântica de qual ferramenta invocar (probabilístico).
+- **⚙️ Camada Determinística (FastMCP / Python):** Responsável pela validação estrita de contratos (Pydantic v2), execução isolada de código, cálculos exatos e retorno previsível sem risco de alucinação (100% determinístico e testável).
 
 ```mermaid
 flowchart LR
@@ -28,268 +28,279 @@ flowchart LR
 
 - **Linguagem:** Python 3.10+
 - **Framework MCP:** `FastMCP` (via pacote oficial `mcp[cli]`)
-- **Validação de Schemas e Tipagem:** `Pydantic v2`
+- **Validação de Schemas e Tipagem:** `Pydantic v2` (com geração nativa de JSON Schema)
+- **Auto-Discovery & Registry:** Mecanismo dinâmico baseado em introspecção modular (`pkgutil` / `importlib` / `pathlib`)
+- **Scaffolding de Tools:** Script CLI auxiliar `scripts/create_tool.py` e template canônico `src/mcp_server/tools/_template/`
+- **Calibração de Agentes:** Instruções integradas em `.agents/skills/control-server-entreprise/SKILL.md`
 - **Testes Unitários:** `pytest`
-- **Transporte Padrão:** `stdio` (comunicação direta de processo via stdin/stdout)
+- **Transportes Suportados:** `stdio` (local) e `HTTP JSON-RPC 2.0` (Cloudflare Workers Edge)
 
 ---
 
-## 📂 3. Estrutura de Pastas e Arquivos
+## 📂 3. Nova Arquitetura Modular de Ferramentas (Screaming Architecture)
+
+Para evitar arquivos monolíticos e eliminar a dispersão de código, cada ferramenta é um **módulo isolado e autocontido** dentro de `src/mcp_server/tools/`:
 
 ```text
 mcp-server-enterprise-blueprint/
 ├── src/
 │   └── mcp_server/
-│       ├── __init__.py             # Pacote Python
-│       ├── server.py               # Ponto de entrada do FastMCP e registro das tools
-│       ├── registry.py             # Catálogo estático de metadados, schemas e documentação
+│       ├── __init__.py             # Pacote principal
+│       ├── server.py               # Ponto de entrada FastMCP e registro dinâmico via discovery
+│       ├── registry.py             # Gerenciador do catálogo dinâmico de tools e schemas
+│       ├── security.py             # Guarda perimetral de autenticação Bearer e Rate Limiting
 │       │
-│       ├── schemas/                # 🛡️ Camada de Validação Estrita (Pydantic v2)
+│       ├── schemas/                # 🛡️ Schemas Globais e Modelos Base
 │       │   ├── __init__.py
-│       │   ├── common.py           # Schemas compartilhados (Documentation, ToolMetadata)
-│       │   ├── hello.py            # Schemas de entrada e saída da tool 'hello'
-│       │   └── calc.py             # Schemas de entrada e saída da tool 'calc'
+│       │   ├── base.py             # BaseModel / Field (com fallback leve de borda)
+│       │   └── common.py           # Modelos de catálogo (ToolDefinition, DocumentationDefinition)
 │       │
-│       └── tools/                  # ⚙️ Camada Determinística (Lógica Pura de Execução)
-│           ├── __init__.py
-│           ├── discover.py         # Lógica da tool 'discover' (inspeção do registry)
-│           ├── hello.py            # Lógica da tool 'hello' (saudação + timestamp ISO)
-│           └── calc.py             # Lógica da tool 'calc' (operações aritméticas seguras)
+│       └── tools/                  # ⚙️ Módulos Autocontidos das Ferramentas (Auto-Discovery)
+│           ├── __init__.py         # Mecanismo de varredura e carregamento dinâmico
+│           │
+│           ├── _template/          # 📐 Template Canônico de Referência (Ignorado pelo Loader)
+│           │   ├── README.md       # Guia rápido de replicação da estrutura
+│           │   ├── __init__.py     # Exportador de exemplo
+│           │   ├── handler.py      # Função execute() boilerplate
+│           │   ├── schema.py       # Pydantic Input/Output boilerplate
+│           │   └── meta.py         # Metadados e exemplos de uso
+│           │
+│           ├── discover/           # 🔍 Tool de Auto-Inspeção do Catálogo
+│           │   ├── __init__.py     # Exporta handler, schema e metadados
+│           │   ├── handler.py      # Execução determinística da inspeção
+│           │   ├── schema.py       # Input/Output Pydantic schemas
+│           │   └── meta.py         # Resumo semântico, diretrizes e exemplos
+│           │
+│           ├── hello/              # 👋 Tool de Saudação e Temporalidade
+│           │   ├── __init__.py
+│           │   ├── handler.py
+│           │   ├── schema.py
+│           │   └── meta.py
+│           │
+│           ├── calc/               # 🧮 Tool de Cálculos Aritméticos
+│           │   ├── __init__.py
+│           │   ├── handler.py
+│           │   ├── schema.py
+│           │   └── meta.py
+│           │
+│           └── [nova_tool]/        # 🚀 Nova Tool Plug-and-Play (Criada via script ou cópia)
+│               ├── __init__.py
+│               ├── handler.py
+│               ├── schema.py
+│               └── meta.py
 │
-├── tests/
+├── .agents/
+│   └── skills/
+│       └── control-server-entreprise/ # 🎛️ Skill de Controle e Criação de Tools Calibrada
+│           └── SKILL.md
+│
+├── tests/                          # 🧪 Suíte de Testes Automatizados
 │   ├── __init__.py
-│   └── test_tools.py               # Testes unitários determinísticos das ferramentas (pytest)
+│   ├── test_discovery.py           # Testes de auto-carregamento e integridade do catálogo
+│   ├── test_tools.py               # Testes unitários das ferramentas (hello, calc, discover)
+│   └── test_security.py            # Testes de autenticação Bearer e Rate Limit
 │
-├── requirements.txt                # Dependências do projeto
-└── pyproject.toml                  # Metadados de empacotamento
+├── scripts/
+│   ├── call_tool.py                # Cliente CLI para testes pontuais
+│   └── create_tool.py              # Gerador de Scaffold automático de novas tools
+├── requirements.txt
+└── pyproject.toml
 ```
 
 ---
 
-## 🔧 4. Especificação Detalhada das Ferramentas (Tools)
+## 🔄 4. Mecanismo de Auto-Discovery e Eliminação de Redundância (Zero-Drift)
 
-### 1. `discover`
-- **Objetivo:** Permite ao LLM inspecionar em tempo de execução o catálogo completo de ferramentas, contratos JSON Schema e diretrizes de uso.
-- **Input Schema:** Vazio (`{}`).
-- **Output Schema:**
-```json
-{
-  "type": "object",
-  "properties": {
-    "tools": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string" },
-          "description": { "type": "string" },
-          "inputSchema": { "type": "object" },
-          "outputSchema": { "type": "object" },
-          "documentation": { "type": "object" }
-        },
-        "required": ["name", "description", "inputSchema", "outputSchema", "documentation"]
-      }
-    },
-    "total": { "type": "integer" }
-  },
-  "required": ["tools", "total"]
-}
-```
-- **Documentação & Exemplos:**
-  - *Summary:* "Lista dinamicamente todas as ferramentas, seus contratos e exemplos de chamada."
-  - *Usage Guidelines:* "Invoque no início de uma sessão para conhecer as capacidades ativas do servidor."
+### 4.1. O Problema da Duplicação Manual (Modelo Anterior)
+No modelo anterior, adicionar uma nova ferramenta exigia replicar informações em 4 lugares distintos:
+1. Código em `tools/nome.py`
+2. Schemas Pydantic em `schemas/nome.py`
+3. JSON Schema manual e descrições em strings em `registry.py`
+4. Registro de função e tipos no `@mcp.tool` em `server.py`
 
----
-
-### 2. `hello`
-- **Objetivo:** Gera saudação personalizada com carimbo de data e hora do sistema em formato ISO 8601.
-- **Input Schema:**
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "Nome da pessoa ou sistema a ser saudado",
-      "minLength": 1
-    }
-  },
-  "required": ["name"],
-  "additionalProperties": false
-}
-```
-- **Output Schema:**
-```json
-{
-  "type": "object",
-  "properties": {
-    "message": { "type": "string", "description": "Mensagem formatada de saudação" },
-    "timestamp": { "type": "string", "format": "date-time", "description": "Data e hora ISO 8601" }
-  },
-  "required": ["message", "timestamp"]
-}
-```
-- **Documentação & Exemplos:**
-  - *Summary:* "Gera saudação personalizada com carimbo temporal do sistema."
-  - *Exemplo Input:* `{"name": "Eduardo"}`
-  - *Exemplo Output:* `{"message": "Olá, Eduardo! Servidor MCP Enterprise operacional.", "timestamp": "2026-09-11T22:15:00.000Z"}`
-
----
-
-### 3. `calc`
-- **Objetivo:** Executa operações matemáticas determinísticas (`+`, `-`, `*`, `/`) entre dois números com tratamento estrito de divisão por zero.
-- **Input Schema:**
-```json
-{
-  "type": "object",
-  "properties": {
-    "valor1": { "type": "number", "description": "Primeiro valor numérico" },
-    "valor2": { "type": "number", "description": "Segundo valor numérico (não pode ser zero em divisão)" },
-    "operacao": {
-      "type": "string",
-      "description": "Operador matemático",
-      "enum": ["+", "-", "*", "/", "soma", "subtracao", "multiplicacao", "divisao"]
-    }
-  },
-  "required": ["valor1", "valor2", "operacao"],
-  "additionalProperties": false
-}
-```
-- **Output Schema:**
-```json
-{
-  "type": "object",
-  "properties": {
-    "resultado": { "type": "number", "description": "Resultado numérico exato" },
-    "formula": { "type": "string", "description": "Expressão resolvida (ex: '150 / 25 = 6')" }
-  },
-  "required": ["resultado", "formula"]
-}
-```
-- **Documentação & Exemplos:**
-  - *Summary:* "Calculadora aritmética determinística para cálculos exatos e seguros."
-  - *Usage Guidelines:* "O LLM DEVE delegar qualquer cálculo para esta ferramenta para eliminar alucinações matemáticas."
-  - *Exemplo 1:* `{"valor1": 150, "valor2": 25, "operacao": "/"}` ➔ `{"resultado": 6.0, "formula": "150 / 25 = 6"}`
-  - *Exemplo 2:* `{"valor1": 10.5, "valor2": 3.2, "operacao": "+"}` ➔ `{"resultado": 13.7, "formula": "10.5 + 3.2 = 13.7"}`
-
----
-
-## 🧪 5. Plano de Testes Unitários (`tests/test_tools.py`)
-
-1. **`test_discover`**: Assegura que o retorno contém exatamente as 3 ferramentas (`discover`, `hello`, `calc`) com seus schemas e documentações íntegros.
-2. **`test_hello`**: Assegura formatação da string e validade do timestamp ISO 8601 retornado.
-3. **`test_calc_operacoes_validas`**: Testa soma, subtração, multiplicação e divisão com números inteiros e decimais.
-4. **`test_calc_divisao_por_zero`**: Assegura que `valor2 = 0` na divisão levanta erro estruturado (`ValueError` tratado).
-5. **`test_calc_operacao_invalida`**: Assegura que operadores fora do enum são rejeitados na validação do Pydantic.
-
----
-
-## 🔐 6. Arquitetura de Autenticação, Portal de Leads e Segurança
-
-### 6.1. Racional de Engenharia e Visão Geral
-O servidor MCP exposto publicamente no domínio `https://mcp-server-enterprise.mardukasoft.online` opera como um **portal completo de infraestrutura para IA**, combinando:
-1. **Camada Web / Portal de Leads:** Renderização de Landing Page moderna no `GET /` para desenvolvedores gerarem suas API Keys informando Nome e E-mail.
-2. **Camada de Proteção Perimetral (Rate Limit):** Limite determinístico de **60 requisições/hora por IP** no Edge.
-3. **Camada Protocolar MCP Protegida:** Execução de ferramentas condicionada a **Bearer Token** (`Authorization: Bearer <TOKEN>`) ou emissão de token via ferramenta autônoma `get_token`.
+### 4.2. A Solução Dinâmica (Novo Padrão)
+1. **Schema Nativo:** `inputSchema` e `outputSchema` são obtidos diretamente de `InputModel.model_json_schema()` e `OutputModel.model_json_schema()`.
+2. **Documentação e Diretrizes:** Definidas em `meta.py` ou extraídas das docstrings do `handler.py`.
+3. **Varredura Automática:** O carregador em `tools/__init__.py` detecta qualquer nova subpasta (ignorando as iniciadas por `_`), importa os contratos e os disponibiliza automaticamente para o FastMCP e para a tool `discover`.
 
 ```mermaid
 flowchart TD
-    Visitante["🌐 Requisição Externa no Edge"] --> CheckMethod{"🔀 Tipo de Requisição"}
+    Scan["📂 tools/__init__.py: Escaneia subpastas em src/mcp_server/tools/ (ignora '_*')"] --> LoadMod["📦 Importa cada módulo (ex: tools.hello, tools.calc)"]
+    LoadMod --> ExtractSchema["🛡️ Extrai JSON Schemas via Pydantic model_json_schema()"]
+    LoadMod --> ExtractMeta["📖 Extrai Metadados Semânticos (meta.py)"]
+    ExtractSchema --> Reg["📚 Registra no Catálogo Unificado (registry.py)"]
+    ExtractMeta --> Reg
+    Reg --> FastMCP["⚡ Registra tools dinamicamente no FastMCP / Worker"]
+    Reg --> DiscoverTool["🔍 Alimenta tool 'discover' sem duplicação de código"]
+```
+
+---
+
+## 📐 5. Template Canônico e Scaffold Automatizado
+
+### 5.1. O Contrato dos 4 Arquivos (`src/mcp_server/tools/_template/`)
+
+Toda ferramenta implementa 4 arquivos padrão dentro de sua respectiva pasta:
+
+#### 1. `schema.py` (Contratos Pydantic)
+```python
+from ...schemas.base import BaseModel, Field
+
+class MinhaToolInput(BaseModel):
+    parametro: str = Field(
+        ...,
+        min_length=1,
+        description="Descrição clara do parâmetro para o LLM",
+        examples=["exemplo_1", "exemplo_2"],
+    )
+
+class MinhaToolOutput(BaseModel):
+    resultado: str = Field(..., description="Resultado formatado da execução")
+```
+
+#### 2. `handler.py` (Lógica Determinística)
+```python
+from .schema import MinhaToolInput, MinhaToolOutput
+
+def execute(dados: MinhaToolInput) -> MinhaToolOutput:
+    """Execução pura e determinística."""
+    res = f"Processado: {dados.parametro}"
+    return MinhaToolOutput(resultado=res)
+```
+
+#### 3. `meta.py` (Metadados e Heurísticas Semânticas para o LLM)
+```python
+from ...schemas.common import DocumentationDefinition, ExampleDefinition
+
+METADATA = {
+    "name": "minha_tool",
+    "description": "Descrição clara da finalidade da ferramenta para a camada cognitiva do LLM.",
+    "documentation": DocumentationDefinition(
+        summary="Resumo funcional objetivo da ferramenta.",
+        usageGuidelines="Quando o LLM deve invocar esta ferramenta.",
+        examples=[
+            ExampleDefinition(
+                scenario="Cenário de exemplo de uso",
+                input={"parametro": "exemplo_1"},
+                expectedOutput={"resultado": "Processado: exemplo_1"},
+            )
+        ],
+    ),
+}
+```
+
+#### 4. `__init__.py` (Ponto Único de Exportação)
+```python
+from .handler import execute
+from .meta import METADATA
+from .schema import MinhaToolInput, MinhaToolOutput
+
+__all__ = ["execute", "MinhaToolInput", "MinhaToolOutput", "METADATA"]
+```
+
+### 5.2. Script Gerador de Tools (`scripts/create_tool.py`)
+Permite criar uma nova tool com um único comando no terminal:
+```powershell
+python scripts/create_tool.py cotacao_dolar --desc "Consulta cotação do dólar"
+```
+
+---
+
+## 🎛️ 6. Calibração do Agente na Skill (`control-server-entreprise`)
+
+O arquivo [`.agents/skills/control-server-entreprise/SKILL.md`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/.agents/skills/control-server-entreprise/SKILL.md) foi calibrado com um capítulo dedicado à **Criação e Gestão de Ferramentas**, orientando qualquer agente futuro sobre contratos, template, scaffold e auto-discovery.
+
+---
+
+## 🔧 7. Especificação das Ferramentas Nativas
+
+### 1. `discover`
+- **Módulo:** `src/mcp_server/tools/discover/`
+- **Objetivo:** Permite ao LLM inspecionar o catálogo completo de ferramentas ativas em tempo de execução.
+- **Input:** `{}` (vazio).
+- **Output:** Catálogo gerado dinamicamente contendo `total` e `tools` (com seus JSON Schemas nativos e documentação).
+
+### 2. `hello`
+- **Módulo:** `src/mcp_server/tools/hello/`
+- **Objetivo:** Valida parâmetros de nome e retorna saudação com timestamp ISO 8601.
+- **Input:** `name: str (min_length=1)`
+- **Output:** `message: str`, `timestamp: str`
+
+### 3. `calc`
+- **Módulo:** `src/mcp_server/tools/calc/`
+- **Objetivo:** Executa operações aritméticas determinísticas (`+`, `-`, `*`, `/`) eliminando alucinações matemáticas.
+- **Input:** `valor1: float`, `valor2: float`, `operacao: OperacaoEnum`
+- **Output:** `resultado: float`, `formula: str`
+
+---
+
+## 🔐 8. Arquitetura de Autenticação, Rate Limiting & Segurança
+
+### 8.1. Visão Geral Perimetral
+O servidor exposto no Cloudflare Edge aplica proteção em camadas:
+1. **Rate Limit Perimetral:** Máximo de **60 requisições/hora por IP** (`CF-Connecting-IP`). Retorno `HTTP 429` com código `-32029`.
+2. **Bearer Token Guard:** Verificação estrita de cabeçalho `Authorization: Bearer <TOKEN>`.
+3. **Chave Mestra Determinística (MVP):** Token `"rezende"`. Retorno `HTTP 401` com código `-32000` em caso de token inválido ou ausente.
+
+```mermaid
+flowchart TD
+    Req["🌐 Requisição Externa no Edge"] --> CheckMethod{"🔀 Tipo de Requisição"}
     
-    CheckMethod -- "Navegador (GET / com Accept: text/html)" --> LandingPage["🎨 Portal Web: Captura de Lead (Nome + Email)"]
-    LandingPage --> SubmitLead["📝 Submit: Nome + Email"]
-    SubmitLead --> SaveLead["💾 Salva Lead (Cloudflare D1 / KV / Webhook)"]
-    SaveLead --> EmitKey["🔑 Exibe API Key pessoal + Snippets (Claude, Cursor, Antigravity)"]
+    CheckMethod -- "Navegador (GET / com Accept: text/html)" --> LandingPage["🎨 Portal Web: Captura de Lead (Backlog)"]
     
     CheckMethod -- "Cliente MCP (POST / JSON-RPC)" --> CheckRate{"⏱️ Rate Limit por IP (Máx 60 req/h)"}
-    CheckRate -- "Passou de 60 req/h" --> Err429["⛔ HTTP 429 Too Many Requests"]
-    CheckRate -- "Dentro da Cota" --> CheckTool{"🔧 Ferramenta Solicitada"}
+    CheckRate -- "Cota Excedida" --> Err429["⛔ HTTP 429 Too Many Requests"]
+    CheckRate -- "Dentro da Cota" --> AuthGuard{"🛡️ Header Authorization: Bearer rezende?"}
     
-    CheckTool -- "Tool Pública: get_token" --> ExecGetToken["🎟️ Emite Token Efêmero de Sessão"]
-    CheckTool -- "Tools Protegidas (calc, hello, discover)" --> AuthGuard{"🛡️ Header Authorization: Bearer <TOKEN>?"}
-    
-    AuthGuard -- "Token Ausente / Inválido" --> Err401["⛔ HTTP 401 Unauthorized / JSON-RPC -32000"]
-    AuthGuard -- "Token Válido" --> ExecTools["⚙️ Execução Determinística da Tool"]
-    ExecTools --> Resp["📦 Retorno JSON-RPC 2.0"]
+    AuthGuard -- "Inválido / Ausente" --> Err401["⛔ HTTP 401 Unauthorized (-32000)"]
+    AuthGuard -- "Válido" --> Exec["⚙️ Auto-Discovery & Execução da Tool"]
+    Exec --> Resp["📦 Resposta JSON-RPC 2.0"]
 ```
 
-### 6.2. Portal Web & Captura de Leads (`GET /`)
-- **Detecção de Navegador:** Se a requisição contiver `Accept: text/html`, o Worker responde com uma página HTML/CSS moderna (Dark Mode, Glassmorphism).
-- **Formulário de Entrada:**
-  - `Nome Completo`
-  - `E-mail Corporativo / Pessoal`
-- **Ação:** O usuário clica em **[ Gerar Minha API Key Gratuita ]**.
-- **Resposta Instantânea:**
-  - Exibição da chave gerada: `mcp_live_xxxxxxxxxxxxxxxx`
-  - Bloco de configuração em JSON pronto para colar no `mcp_config.json`, `claude_desktop_config.json` ou `Cursor`.
-- **Persistência do Lead:** Gravação no Cloudflare D1/KV e/ou disparo de Webhook para CRM/Notificação.
+---
 
-### 6.3. Rate Limiting por IP (60 chamadas / IP / hora)
-- **Extração de IP:** Obtido diretamente do header de borda da Cloudflare (`request.headers.get("CF-Connecting-IP")`).
-- **Contador no Edge KV:**
-  - Chave: `ratelimit:{client_ip}:{yyyyMMddHH}`
-  - TTL: 3600 segundos (1 hora).
-- **Ação ao Exceder Limite:**
-  - Retorno imediato `HTTP 429 Too Many Requests` com mensagem orientando o usuário a obter uma API Key no portal.
+## 🧪 9. Plano de Testes Automatizados (`pytest`)
 
-### 6.4. Ferramenta Autônoma de Autenticação (`get_token`)
-Para permitir que agentes de IA e clientes programáticos obtenham tokens de sessão de forma autônoma:
-- **Status:** Tool Pública (isenta de Bearer Token prévio).
-- **Input Schema:**
-  ```json
-  {
-    "type": "object",
-    "properties": {
-      "client_name": { "type": "string", "description": "Identificação do cliente ou agente" }
-    },
-    "required": ["client_name"]
-  }
-  ```
-- **Output:** Token efêmero de sessão com expiração e cota controlada.
+1. **`test_discovery_loader`**: Valida se todas as pastas em `tools/` são descobertas e carregadas sem erros de import e se pastas iniciadas por `_` (como `_template`) são ignoradas.
+2. **`test_schema_generation`**: Garante que `model_json_schema()` do Pydantic gera `inputSchema` e `outputSchema` válidos.
+3. **`test_scaffold_generator`**: Testa a criação de uma tool temporária via `scripts/create_tool.py` e sua validação pelo discovery.
+4. **`test_tools_execution`**: Executa testes funcionais para `hello`, `calc` e `discover`.
+5. **`test_security_bearer`**: Testa rejeição de requisições sem token ou com token inválido.
+6. **`test_rate_limiting`**: Simula mais de 60 requisições para um mesmo IP e valida o bloqueio `429`.
 
-### 6.5. Estrutura do Header de Autenticação
-As requisições autenticadas para o endpoint HTTP / Edge devem conter:
-```http
-Authorization: Bearer <SEU_TOKEN_SECRETO_ENTERPRISE>
-```
-*(Alternativa aceita via header secundário: `x-api-key: <TOKEN>`)*
+---
 
-### 6.6. Armazenamento Seguro de Segredos
-- **Ambiente de Produção (Cloudflare Edge):** A chave de API mestra é injetada como segredo encriptado via Wrangler:
-  ```bash
-  npx wrangler secret put MCP_API_KEY
-  ```
-- **Ambiente de Desenvolvimento / Testes (.env / Local):**
-  - Variável `MCP_API_KEY` configurada no ambiente local para testes.
+## 📋 10. To-Do List — Roadmap de Implementação
 
-### 6.7. Tratamento de Erros e Códigos de Status
-Quando o token estiver ausente, incorreto ou o limite for excedido:
-- **HTTP 401 Unauthorized (Token Inválido ou Ausente):**
-  ```json
-  {
-    "jsonrpc": "2.0",
-    "id": null,
-    "error": {
-      "code": -32000,
-      "message": "Acesso não autorizado: Bearer Token ausente ou inválido. Obtenha sua chave em https://mcp-server-enterprise.mardukasoft.online"
-    }
-  }
-  ```
-- **HTTP 429 Too Many Requests (Rate Limit Excedido):**
-  ```json
-  {
-    "jsonrpc": "2.0",
-    "id": null,
-    "error": {
-      "code": -32029,
-      "message": "Limite de requisições atingido: máximo de 60 chamadas por hora por IP."
-    }
-  }
-  ```
+### 📐 Fase 1: Template Canônico e Script de Scaffold (Concluída ✅)
+- [x] **Task 1.1 — Criação da pasta `src/mcp_server/tools/_template/`:**
+  - [x] Criar `schema.py`, `handler.py`, `meta.py`, `__init__.py` e `README.md`.
+- [x] **Task 1.2 — Implementação de `scripts/create_tool.py`:**
+  - [x] Criar gerador CLI com suporte a `--name`, `--desc` e formatação de templates.
+- [x] **Task 1.3 — Calibração da Skill `.agents/skills/control-server-entreprise/SKILL.md`:**
+  - [x] Adicionar seção de desenvolvimento e criação de novas ferramentas.
 
-### 6.8. Plano de Implementação
-1. **Página Web no `src/entry.py`:** Handler para renderizar a interface de Lead Capture em HTML/CSS/JS quando `Accept: text/html`.
-2. **Middleware de Rate Limiting & Auth:** Validação do limite de 60 req/h por IP e verificação de `Authorization: Bearer <TOKEN>`.
-3. **Tool `get_token`:** Criação do schema e tool determinística em `src/mcp_server/tools/get_token.py`.
-4. **Atualização dos Scripts e Testes (`tests/test_auth.py`, `scripts/control.ps1`):** Suporte total ao envio e validação de tokens e rate limits.
+### 🚀 Fase 2: Refatoração Modular das Tools Existentes (Concluída ✅)
+- [x] **Task 2.1 — Migração da Tool `hello`:**
+  - [x] Criar pasta `src/mcp_server/tools/hello/` (`schema.py`, `handler.py`, `meta.py`, `__init__.py`).
+- [x] **Task 2.2 — Migração da Tool `calc`:**
+  - [x] Criar pasta `src/mcp_server/tools/calc/` (`schema.py`, `handler.py`, `meta.py`, `__init__.py`).
+- [x] **Task 2.3 — Migração da Tool `discover`:**
+  - [x] Criar pasta `src/mcp_server/tools/discover/` (`schema.py`, `handler.py`, `meta.py`, `__init__.py`).
 
+### 🔍 Fase 3: Mecanismo de Auto-Discovery e Registry Dinâmico (Concluída ✅)
+- [x] **Task 3.1 — Loader em `src/mcp_server/tools/__init__.py`:**
+  - [x] Escanear subdiretórios de `tools/` (filtrando pastas `_*`), extraindo metadados, schemas e funções `execute`.
+- [x] **Task 3.2 — Refatorar `src/mcp_server/registry.py`:**
+  - [x] Gerar catálogo dinâmico via `model_json_schema()` e implementar função `dispatch_tool(name, args)`.
+- [x] **Task 3.3 — Refatorar `src/mcp_server/server.py` & `src/entry.py`:**
+  - [x] Integrar carregamento dinâmico no FastMCP e no handler do Cloudflare Worker.
+- [x] **Task 3.4 — Limpeza dos arquivos legados:**
+  - [x] Remover `tools/hello.py`, `tools/calc.py`, `tools/discover.py`, `schemas/hello.py`, `schemas/calc.py`.
+
+### 🧪 Fase 4: Validação, Testes e Integração Edge (Concluída ✅)
+- [x] **Task 4.1 — Suíte de Testes Automatizados (`pytest`):**
+  - [x] Criar `tests/test_discovery.py` e atualizar `tests/test_tools.py` e `tests/test_mcp_server.py`.
+  - [x] Executar suíte completa de testes via `pytest` (42/42 aprovados).
+- [x] **Task 4.2 — Smoke Test End-to-End:**
+  - [x] Validar chamadas com `scripts/call_tool.py`.

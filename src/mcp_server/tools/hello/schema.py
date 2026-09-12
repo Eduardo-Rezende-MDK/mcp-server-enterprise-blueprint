@@ -1,6 +1,6 @@
 """Schemas for the 'hello' MCP tool."""
 
-from .base import BaseModel, Field
+from ...schemas.base import BaseModel, Field
 
 
 class HelloInput(BaseModel):
@@ -10,6 +10,7 @@ class HelloInput(BaseModel):
         ...,
         min_length=1,
         description="Nome da pessoa ou sistema a ser saudado",
+        examples=["Eduardo", "Sistema de Faturamento"],
     )
 
 

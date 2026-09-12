@@ -1,0 +1,130 @@
+"""Unit and integration tests for security module: Bearer Token Auth and Rate Limiting."""
+
+import time
+import pytest
+
+from mcp_server.security import (
+    MASTER_BEARER_TOKEN,
+    RateLimiter,
+    extract_client_ip,
+    validate_bearer_token,
+)
+
+
+class TestTokenValidation:
+    """Testes para a validação estrita de Bearer Token."""
+
+    def test_bearer_token_valido(self):
+        assert validate_bearer_token("Bearer rezende") is True
+
+    def test_bearer_token_case_insensitive_prefix(self):
+        assert validate_bearer_token("bearer rezende") is True
+        assert validate_bearer_token("BEARER rezende") is True
+
+    def test_bearer_token_invalido(self):
+        assert validate_bearer_token("Bearer token_invalido") is False
+        assert validate_bearer_token("Bearer 123456") is False
+
+    def test_bearer_token_sem_prefixo(self):
+        assert validate_bearer_token("rezende") is False
+        assert validate_bearer_token("Basic rezende") is False
+
+    def test_bearer_token_nulo_ou_vazio(self):
+        assert validate_bearer_token(None) is False
+        assert validate_bearer_token("") is False
+        assert validate_bearer_token("   ") is False
+
+    def test_bearer_token_malformado(self):
+        assert validate_bearer_token("Bearer") is False
+        assert validate_bearer_token("Bearer rezende extra_params") is False
+        assert validate_bearer_token("Bearer   ") is False
+
+
+class TestExtractClientIp:
+    """Testes para extração determinística de IP do cliente a partir de headers."""
+
+    def test_extrai_cf_connecting_ip(self):
+        headers = {"cf-connecting-ip": "203.0.113.195"}
+        assert extract_client_ip(headers) == "203.0.113.195"
+
+    def test_extrai_x_real_ip(self):
+        headers = {"x-real-ip": "198.51.100.10"}
+        assert extract_client_ip(headers) == "198.51.100.10"
+
+    def test_extrai_primeiro_ip_x_forwarded_for(self):
+        headers = {"x-forwarded-for": "198.51.100.10, 10.0.0.1, 172.16.0.1"}
+        assert extract_client_ip(headers) == "198.51.100.10"
+
+    def test_prioridade_cf_connecting_ip_sobre_outros(self):
+        headers = {
+            "cf-connecting-ip": "203.0.113.1",
+            "x-real-ip": "198.51.100.1",
+            "x-forwarded-for": "192.0.2.1",
+        }
+        assert extract_client_ip(headers) == "203.0.113.1"
+
+    def test_fallback_quando_headers_ausentes(self):
+        assert extract_client_ip({}) == "127.0.0.1"
+        assert extract_client_ip(None) == "127.0.0.1"
+
+
+class TestRateLimiter:
+    """Testes para o controlador de taxa determinístico."""
+
+    def test_rate_limiter_permite_ate_o_limite(self):
+        limiter = RateLimiter(limit=5, window_seconds=60)
+        client_ip = "192.168.1.100"
+        t0 = 1000.0
+
+        for i in range(5):
+            allowed, remaining = limiter.is_allowed(client_ip, current_time=t0 + i)
+            assert allowed is True
+            assert remaining == 5 - (i + 1)
+
+    def test_rate_limiter_bloqueia_apos_exceder_limite(self):
+        limiter = RateLimiter(limit=5, window_seconds=60)
+        client_ip = "192.168.1.100"
+        t0 = 1000.0
+
+        # Faz 5 requisições permitidas
+        for i in range(5):
+            limiter.is_allowed(client_ip, current_time=t0 + i)
+
+        # A 6ª requisição deve ser bloqueada
+        allowed, remaining = limiter.is_allowed(client_ip, current_time=t0 + 5)
+        assert allowed is False
+        assert remaining == 0
+
+    def test_rate_limiter_reseta_apos_janela(self):
+        limiter = RateLimiter(limit=2, window_seconds=60)
+        client_ip = "192.168.1.100"
+        t0 = 1000.0
+
+        limiter.is_allowed(client_ip, current_time=t0)
+        limiter.is_allowed(client_ip, current_time=t0 + 10)
+
+        # Bloqueado no tempo t0 + 20
+        allowed, _ = limiter.is_allowed(client_ip, current_time=t0 + 20)
+        assert allowed is False
+
+        # Após expirar a janela (t0 + 65), as requisições anteriores saem do histórico
+        allowed, remaining = limiter.is_allowed(client_ip, current_time=t0 + 65)
+        assert allowed is True
+        assert remaining >= 0
+
+    def test_rate_limiter_isola_ips_diferentes(self):
+        limiter = RateLimiter(limit=2, window_seconds=60)
+        ip1 = "10.0.0.1"
+        ip2 = "10.0.0.2"
+        t0 = 1000.0
+
+        # Esgota cota do ip1
+        limiter.is_allowed(ip1, current_time=t0)
+        limiter.is_allowed(ip1, current_time=t0 + 1)
+        allowed_ip1, _ = limiter.is_allowed(ip1, current_time=t0 + 2)
+        assert allowed_ip1 is False
+
+        # ip2 continua com cota livre
+        allowed_ip2, remaining_ip2 = limiter.is_allowed(ip2, current_time=t0 + 2)
+        assert allowed_ip2 is True
+        assert remaining_ip2 == 1

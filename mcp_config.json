@@ -1,8 +1,10 @@
 {
   "mcpServers": {
     "mcp-server-enterprise": {
-      "url": "https://mcp-server-enterprise.mardukasoft.online"
+      "url": "https://mcp-server-enterprise.mardukasoft.online",
+      "headers": {
+        "Authorization": "Bearer rezende"
+      }
     }
   }
 }
-
