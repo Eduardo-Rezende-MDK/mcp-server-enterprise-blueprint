@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "discover", "call", "invoke", "status", "test", "deploy", "logs", "auth", "check_env", "diagnose", "install_deps", "setup_mode", "install", "onboard", "clean", "reset", "uninstall")]
+    [ValidateSet("help", "discover", "call", "invoke", "status", "test", "deploy", "logs", "auth", "check_env", "diagnose", "install_deps", "setup_mode", "install", "onboard", "clean", "reset", "uninstall", "create_tool", "scaffold", "sync_secrets", "secrets")]
     [string]$Action = "help",
 
     [Parameter(Position = 1)]
@@ -14,6 +14,8 @@ param(
 
     [Parameter(Position = 2)]
     [string]$ArgsJson = "{}",
+
+    [string]$Desc = "",
 
     [string]$Token = "",
 
@@ -105,6 +107,14 @@ function Show-Help() {
     Write-Host "  10. deploy" -ForegroundColor White
     Write-Host "     Roda pytest e wrangler deploy no Edge (requer repo fonte)." -ForegroundColor Gray
     Write-Host "     Exemplo: powershell -File control.ps1 -Action deploy" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  11. create_tool (ou scaffold)" -ForegroundColor White
+    Write-Host "     Gera uma nova ferramenta deterministica a partir do template canonico." -ForegroundColor Gray
+    Write-Host "     Exemplo: powershell -File control.ps1 -Action create_tool -Tool cotacao_dolar -Desc 'Consulta cotacao'" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  12. sync_secrets (ou secrets)" -ForegroundColor White
+    Write-Host "     Sincroniza segredos de .dev.vars/.env diretamente para o Cloudflare Workers." -ForegroundColor Gray
+    Write-Host "     Exemplo: powershell -File control.ps1 -Action sync_secrets" -ForegroundColor Green
     Write-Host "==================================================================" -ForegroundColor Cyan
 }
 
@@ -565,6 +575,68 @@ switch ($Action.ToLower()) {
 
         Write-Host "[5/5] Executando smoke test..." -ForegroundColor Yellow
         & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action test -Token $Token
+    }
+
+    { $_ -in @("create_tool", "scaffold") } {
+        Show-Header "CRIACAO DE FERRAMENTA DETERMINISTICA (SCAFFOLD)"
+        if (-not $Tool) {
+            Write-Host "[ERRO] Especifique o nome da ferramenta com: -Tool <nome_em_snake_case>" -ForegroundColor Red
+            exit 1
+        }
+        try {
+            $descArg = if ($Desc) { ", description='$Desc'" } else { "" }
+            $pyCmd = "from mcp_server.scaffold import create_tool; p = create_tool('$Tool'$descArg); print(f'[OK] Criada em: {p}')"
+            python -c "$pyCmd"
+            Write-Host "[OK] Ferramenta '$Tool' gerada e pronta para auto-discovery!" -ForegroundColor Green
+        } catch {
+            Write-Host "[ERRO] Falha ao criar ferramenta: $_" -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    { $_ -in @("sync_secrets", "secrets") } {
+        Show-Header "SINCRONIZACAO DE SEGREDOS -> CLOUDFLARE WORKERS"
+        $envVars = @{}
+        $devVarsPath = "$ProjectRoot\.dev.vars"
+        $envPath = "$ProjectRoot\.env"
+
+        $targetFile = $null
+        if (Test-Path $devVarsPath) { $targetFile = $devVarsPath }
+        elseif (Test-Path $envPath) { $targetFile = $envPath }
+
+        if (-not $targetFile) {
+            Write-Host "[ERRO] Nenhum arquivo .dev.vars ou .env encontrado." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "Carregando segredos de: $targetFile" -ForegroundColor Cyan
+        $lines = Get-Content $targetFile
+        foreach ($line in $lines) {
+            $trimmed = $line.Trim()
+            if (-not $trimmed -or $trimmed.StartsWith("#") -or -not ($trimmed.Contains("="))) { continue }
+            $parts = $trimmed.Split("=", 2)
+            $k = $parts[0].Trim()
+            $v = $parts[1].Trim().Trim('"').Trim("'")
+            if ($k -and $v) { $envVars[$k] = $v }
+        }
+
+        $sensitiveKeys = @("REDIS_URL", "GMAIL_USER", "GMAIL_APP_PASSWORD", "RESEND_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ADMIN_TOKEN", "ADMIN_EMAIL", "ADMIN_NAME")
+        foreach ($k in $sensitiveKeys) {
+            if ($envVars.ContainsKey($k)) {
+                $val = $envVars[$k]
+                Write-Host " -> Sincronizando secret [$k]..." -ForegroundColor Yellow
+                try {
+                    $val | npx wrangler secret put $k
+                    Write-Host "    [OK] Secret [$k] sincronizada!" -ForegroundColor Green
+                } catch {
+                    Write-Host "    [ERRO] Falha ao enviar [$k]: $_" -ForegroundColor Red
+                }
+            } else {
+                Write-Host " -> [$k]: nao encontrado no arquivo local, ignorando." -ForegroundColor Gray
+            }
+        }
+        Write-Host ""
+        Write-Host "[SUCESSO] Sincronizacao de segredos concluida!" -ForegroundColor Green
     }
 }
 

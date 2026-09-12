@@ -75,6 +75,8 @@ a gente consegue remover do repositorio , ou melhor da branch , a parte de auth 
 
 Sobre o auth e os lead:
 - ✅ RBAC Perimetral implementado com separação estrita: `admin` (acesso total) e `lead` (ferramentas públicas apenas).
-- ✅ Token único Master MARDUKA configurado para o admin `du.rezende@gmail.com`.
+- ✅ Autenticação e tokens gerenciados 100% via Redis (sem credenciais expostas em código).
+- ✅ Pasta `scripts/` da raiz eliminada e consolidada na skill `control-server-entreprise`.
 - ✅ Instalação e Wizard de Onboarding implementados com sucesso.
 - ✅ Repositório público limpo e protegido com variáveis de ambiente e secrets no Cloudflare.
+- ✅ Suíte de testes formal (pytest) com 81/81 testes aprovados (100%).

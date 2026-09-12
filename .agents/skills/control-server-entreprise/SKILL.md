@@ -134,3 +134,5 @@ O desenvolvedor **nunca precisa executar comandos CLI para usar ferramentas**. A
 | **`status`** | Consulta a saúde, latência e metadados da instância online |
 | **`test`** | Executa validação protocolar ponta a ponta |
 | **`deploy`** | Publica o Worker no Cloudflare Edge via Wrangler |
+| **`create_tool`** | Gera scaffolding completo de nova tool a partir do template canônico |
+| **`sync_secrets`** | Sincroniza segredos de `.dev.vars` / `.env` diretamente para o Cloudflare Workers |

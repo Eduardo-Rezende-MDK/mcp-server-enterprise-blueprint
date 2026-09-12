@@ -3,7 +3,7 @@
     "mcp-server-enterprise": {
       "url": "https://mcp-server-enterprise.mardukasoft.online",
       "headers": {
-        "Authorization": "Bearer MARDUKA"
+        "Authorization": "Bearer <SEU_TOKEN_AQUI>"
       },
       "type": "http"
     }

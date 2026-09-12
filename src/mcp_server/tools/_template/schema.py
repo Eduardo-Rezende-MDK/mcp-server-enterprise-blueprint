@@ -1,6 +1,6 @@
 """Template de Schemas Pydantic para novas MCP Tools.
 
-Copie este arquivo ao criar uma nova tool ou utilize 'python scripts/create_tool.py <nome_da_tool>'.
+Copie este arquivo ao criar uma nova tool ou utilize 'python -m mcp_server.scaffold <nome_da_tool>' ou via skill control-server-entreprise.
 """
 
 from ...schemas.base import BaseModel, Field

@@ -11,11 +11,9 @@ RATE_LIMIT_WINDOW_SECONDS = 3600
 ADMIN_ONLY_TOOLS = {"auth", "redis", "send_mail"}
 PUBLIC_TOOLS = {"calc", "benchmark_cost", "sqlite", "hello", "discover"}
 
-MARDUKA_ADMIN_TOKEN = "MARDUKA"
-
 
 def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
-    """Valida o Bearer Token e retorna o dicionário com os dados cadastrais do usuário (incluindo role).
+    """Valida o Bearer Token e retorna o dicionário com os dados cadastrais do usuário (incluindo role) diretamente do Redis.
     
     Args:
         authorization_header: Valor do cabeçalho HTTP Authorization (ex: 'Bearer mcp_live_...')
@@ -38,17 +36,7 @@ def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
     if not token:
         return None
 
-    # 1. Token Mestre Fixo MARDUKA (Admin Supremo Único)
-    if token.upper() == MARDUKA_ADMIN_TOKEN:
-        return {
-            "name": "Eduardo Rezende",
-            "email": "du.rezende@gmail.com",
-            "token": "MARDUKA",
-            "role": "admin",
-            "status": "active",
-        }
-
-    # 2. Consulta no Redis O(1)
+    # Consulta no Redis O(1)
     try:
         from .tools.auth.handler import execute as execute_auth
         auth_res = execute_auth({"action": "get_token", "token": token})

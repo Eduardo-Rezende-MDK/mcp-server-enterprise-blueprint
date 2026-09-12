@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from mcp_server.registry import build_tool_definitions, dispatch_tool, get_catalog
 from mcp_server.tools import discover_tools
-from scripts.create_tool import create_tool
+from mcp_server.scaffold import create_tool
 
 
 class TestToolAutoDiscovery:

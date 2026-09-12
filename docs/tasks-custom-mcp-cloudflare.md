@@ -129,18 +129,17 @@ flowchart TD
 
 ---
 
-## 🔒 Fase 5: Blindagem Perimetral (RBAC) & Token Único MARDUKA (Concluída)
+---
 
-- [x] **5.1. Controle de Acesso Baseado em Papéis (RBAC no Edge)**
-  - [x] Separação estrita entre ferramentas públicas (`calc`, `hello`, `discover`, `benchmark_cost`, `sqlite`) e administrativas restritas (`auth`, `redis`, `send_mail`)
-  - [x] Bloqueio determinístico perimetral no `tools/call` com HTTP 403 / JSON-RPC `-32003` para perfis `lead`
-  - [x] Filtragem dinâmica de catálogo no `tools/list` para ocultar ferramentas administrativas dos clientes/leads
-- [x] **5.2. Token Master Único MARDUKA**
-  - [x] Padronização de **`MARDUKA`** como o único token mestre do Administrador (`du.rezende@gmail.com`)
-  - [x] Expurgados todos os tokens temporários e legados do código, `.env`, `mcp_config.json` e Redis
-  - [x] Reset e bootstrap determinístico do banco de dados Redis Upstash
-  - [x] Suíte de testes atualizada: 81/81 testes aprovados (`pytest`)
-  - [x] Deploy em produção ativo no Cloudflare Workers (`https://mcp-server-enterprise.mardukasoft.online`)
+## 🧹 Fase 6: Consolidação na Skill `control-server-entreprise` & Blindagem Total de Segredos (Concluída)
 
-
-
+- [x] **6.1. Eliminação da Pasta Raiz `scripts/` e Centralização na Skill**
+  - [x] Removida a pasta legada `scripts/` da raiz do repositório.
+  - [x] Migrado o scaffolding de tools para o módulo nativo [`src/mcp_server/scaffold.py`](../src/mcp_server/scaffold.py).
+  - [x] Centralizadas todas as rotinas operacionais (`create_tool`, `sync_secrets`, `auth`, `check_env`, `test`, `deploy`) no [`control.ps1`](../.agents/skills/control-server-entreprise/scripts/control.ps1).
+  - [x] Documentação da skill atualizada no [`SKILL.md`](../.agents/skills/control-server-entreprise/SKILL.md).
+- [x] **6.2. Desacoplamento Total de Segredos e Autenticação 100% via Redis**
+  - [x] Expurgados quaisquer tokens estáticos ou e-mails fixos dos arquivos de código [`security.py`](../src/mcp_server/security.py) e [`handler.py`](../src/mcp_server/tools/auth/handler.py).
+  - [x] Validação de papéis (RBAC) e Bearer Tokens operando 100% dinamicamente via consultas no Redis $O(1)$.
+  - [x] Sanitizados os arquivos [`mcp_config.json`](../mcp_config.json), [`.dev.vars.example`](../.dev.vars.example) e [`.env.example`](../.env.example).
+  - [x] Suíte de testes formal (`pytest`) com 81/81 testes passando (100% de integridade).
