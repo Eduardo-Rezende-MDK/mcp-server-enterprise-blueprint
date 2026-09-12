@@ -3,7 +3,7 @@
 import json
 import urllib.request
 
-WORKER_URL = "https://mcp-server-enterprise.danicardoso-3011.workers.dev"
+WORKER_URL = "https://mcp-server-enterprise.mardukasoft.online"
 
 
 def call_rpc(method: str, params: dict = None, request_id: int = 1) -> dict:

@@ -43,14 +43,7 @@ Configure seu arquivo `.agents/mcp_config.json` ou `mcp_config.json`:
 {
   "mcpServers": {
     "mcp-server-enterprise": {
-      "url": "https://mcp-server-enterprise.danicardoso-3011.workers.dev"
-    },
-    "mcp-server-enterprise-local": {
-      "command": "python",
-      "args": [
-        "-m",
-        "src.mcp_server.server"
-      ]
+      "url": "https://mcp-server-enterprise.mardukasoft.online"
     }
   }
 }

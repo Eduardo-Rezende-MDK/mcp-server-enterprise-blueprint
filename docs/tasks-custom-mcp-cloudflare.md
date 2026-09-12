@@ -18,24 +18,24 @@ flowchart LR
 
 - [x] **1.1. Ambiente e Dependências**
   - [x] Criar e ativar ambiente virtual (`.venv`)
-  - [x] Configurar [requirements.txt](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/requirements.txt) (`fastmcp`, `mcp`, `pydantic`, `pytest`)
-  - [x] Configurar [pyproject.toml](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/pyproject.toml) com layout `src/` e `[tool.pyright]`
+  - [x] Configurar [requirements.txt](../requirements.txt) (`fastmcp`, `mcp`, `pydantic`, `pytest`)
+  - [x] Configurar [pyproject.toml](../pyproject.toml) com layout `src/` e `[tool.pyright]`
   - [x] Instalar o pacote em modo editável (`pip install -e .`)
 - [x] **1.2. Contratos e Validação Estrita (Pydantic v2)**
-  - [x] Implementar schemas compartilhados em [src/mcp_server/schemas/common.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/schemas/common.py)
-  - [x] Implementar schema da tool `hello` em [src/mcp_server/schemas/hello.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/schemas/hello.py)
-  - [x] Implementar schema da tool `calc` com enum de operadores em [src/mcp_server/schemas/calc.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/schemas/calc.py)
+  - [x] Implementar schemas compartilhados em [src/mcp_server/schemas/common.py](../src/mcp_server/schemas/common.py)
+  - [x] Implementar schema da tool `hello` em [src/mcp_server/schemas/hello.py](../src/mcp_server/schemas/hello.py)
+  - [x] Implementar schema da tool `calc` com enum de operadores em [src/mcp_server/schemas/calc.py](../src/mcp_server/schemas/calc.py)
 - [x] **1.3. Lógica Determinística das Ferramentas**
-  - [x] Implementar `execute_discover` em [src/mcp_server/tools/discover.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/tools/discover.py)
-  - [x] Implementar `execute_hello` em [src/mcp_server/tools/hello.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/tools/hello.py)
-  - [x] Implementar `execute_calc` em [src/mcp_server/tools/calc.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/tools/calc.py)
+  - [x] Implementar `execute_discover` em [src/mcp_server/tools/discover.py](../src/mcp_server/tools/discover.py)
+  - [x] Implementar `execute_hello` em [src/mcp_server/tools/hello.py](../src/mcp_server/tools/hello.py)
+  - [x] Implementar `execute_calc` em [src/mcp_server/tools/calc.py](../src/mcp_server/tools/calc.py)
 - [x] **1.4. Servidor FastMCP e Catálogo de Metadados**
-  - [x] Criar catálogo com documentação estendida em [src/mcp_server/registry.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/registry.py)
-  - [x] Criar ponto de entrada do servidor em [src/mcp_server/server.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/server.py)
+  - [x] Criar catálogo com documentação estendida em [src/mcp_server/registry.py](../src/mcp_server/registry.py)
+  - [x] Criar ponto de entrada do servidor em [src/mcp_server/server.py](../src/mcp_server/server.py)
 - [x] **1.5. Testes e Validação Protocolar**
-  - [x] Criar suíte de testes unitários em [tests/test_tools.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/tests/test_tools.py) e [tests/test_mcp_server.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/tests/test_mcp_server.py)
+  - [x] Criar suíte de testes unitários em [tests/test_tools.py](../tests/test_tools.py) e [tests/test_mcp_server.py](../tests/test_mcp_server.py)
   - [x] Executar validação com `pytest` (19/19 testes passaram)
-  - [x] Registrar no cliente MCP do projeto ([mcp_config.json](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/mcp_config.json) e [.agents/mcp_config.json](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/.agents/mcp_config.json))
+  - [x] Registrar no cliente MCP do projeto ([mcp_config.json](../mcp_config.json) e [.agents/mcp_config.json](../.agents/mcp_config.json))
   - [x] Validar chamada da tool `hello` via protocolo nativo MCP
 
 ---
@@ -72,8 +72,10 @@ flowchart LR
 - [x] **3.2. Entrypoint Serverless em Python (`src/entry.py`)**
   - [x] Implementar o handler `on_fetch(request, env)` conectando as ferramentas determinísticas de `src/mcp_server/tools/`
   - [x] Expor endpoints HTTP (GET info) e JSON-RPC 2.0 (POST /) compatíveis com o protocolo MCP
-  - [x] Criar fallback de schemas puro-Python em [src/mcp_server/schemas/base.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/schemas/base.py) para o runtime Pyodide Edge
+  - [x] Criar fallback de schemas puro-Python em [src/mcp_server/schemas/base.py](../src/mcp_server/schemas/base.py) para o runtime Pyodide Edge
 - [x] **3.3. Deploy e Teste em Produção**
   - [x] Executar o deploy no Edge: `npx wrangler deploy`
-  - [x] Obter a URL de produção: `https://mcp-server-enterprise.danicardoso-3011.workers.dev`
-  - [x] Validar o handshake e as ferramentas em produção via [scripts/test_cloudflare_worker.py](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/scripts/test_cloudflare_worker.py) (6/6 testes passaram)
+  - [x] Configurar domínio customizado no `wrangler.toml`: `mcp-server-enterprise.mardukasoft.online`
+  - [x] Obter a URL de produção: `https://mcp-server-enterprise.mardukasoft.online`
+  - [x] Validar o handshake e as ferramentas em produção via [scripts/test_cloudflare_worker.py](../scripts/test_cloudflare_worker.py) (6/6 testes passaram)
+

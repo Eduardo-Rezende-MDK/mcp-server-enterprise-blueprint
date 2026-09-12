@@ -4,5 +4,12 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["python_workers"]
 account_id = "<CLOUDFLARE_ACCOUNT_ID>"
 
+# 🌐 Domínio Customizado Enterprise
+workers_dev = true
+routes = [
+  { pattern = "mcp-server-enterprise.mardukasoft.online", custom_domain = true }
+]
+
 [observability]
 enabled = true
+
