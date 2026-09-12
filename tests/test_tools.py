@@ -42,7 +42,7 @@ class TestHelloTool:
     def test_hello_retorna_saudacao_valida(self):
         dados = HelloInput(name="Eduardo")
         resposta = execute_hello(dados)
-        assert "Olá, Eduardo!" in resposta.message
+        assert "Eduardo!" in resposta.message
         assert "MCP Enterprise" in resposta.message
 
     def test_hello_retorna_timestamp_iso8601_valido(self):

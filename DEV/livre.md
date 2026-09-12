@@ -16,3 +16,7 @@ Em vez de arquivos monolíticos e espalhados entre `schemas/`, `tools/` e `regis
 2. **Auto-Discovery:** O servidor descobre automaticamente todas as subpastas em `tools/` (ignorando `_*`).
 3. **Zero-Drift:** Schemas JSON extraídos nativamente do Pydantic (`InputModel.model_json_schema()`), sem escrita manual repetitiva de JSON Schema.
 4. **Scaffolding Ágil:** `python scripts/create_tool.py <nome_da_tool>` gera uma nova tool em 1 segundo.
+
+
+
+mcp-server-enterprise  hello gou

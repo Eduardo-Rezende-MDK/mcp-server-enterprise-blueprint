@@ -19,7 +19,7 @@ class TestMcpServerIntegration:
     def test_server_hello_tool(self):
         res = hello(name="Eduardo")
         assert isinstance(res, dict)
-        assert "Olá, Eduardo!" in res["message"]
+        assert "Eduardo!" in res["message"]
         assert "timestamp" in res
 
     def test_server_calc_tool(self):

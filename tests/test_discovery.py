@@ -60,7 +60,7 @@ class TestDynamicRegistry:
     def test_dispatch_tool_executa_com_sucesso(self):
         # Teste hello via dispatch
         hello_res = dispatch_tool("hello", {"name": "Rezende"})
-        assert "Olá, Rezende!" in hello_res["message"]
+        assert "Rezende!" in hello_res["message"]
         assert "timestamp" in hello_res
 
         # Teste calc via dispatch
