@@ -93,10 +93,34 @@ def execute_discover(*args: Any, **kwargs: Any) -> Any:
     return tools["discover"].execute(*args, **kwargs)
 
 
+def execute_sqlite(*args: Any, **kwargs: Any) -> Any:
+    tools = discover_tools()
+    return tools["sqlite"].execute(*args, **kwargs)
+
+
+def execute_redis(*args: Any, **kwargs: Any) -> Any:
+    tools = discover_tools()
+    return tools["redis"].execute(*args, **kwargs)
+
+
+def execute_auth(*args: Any, **kwargs: Any) -> Any:
+    tools = discover_tools()
+    return tools["auth"].execute(*args, **kwargs)
+
+
+def execute_send_mail(*args: Any, **kwargs: Any) -> Any:
+    tools = discover_tools()
+    return tools["send_mail"].execute(*args, **kwargs)
+
+
 __all__ = [
     "ToolPackage",
     "discover_tools",
     "execute_hello",
     "execute_calc",
     "execute_discover",
+    "execute_sqlite",
+    "execute_redis",
+    "execute_auth",
+    "execute_send_mail",
 ]

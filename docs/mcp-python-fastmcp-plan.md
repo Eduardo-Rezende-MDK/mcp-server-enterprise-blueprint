@@ -232,6 +232,12 @@ O arquivo [`.agents/skills/control-server-entreprise/SKILL.md`](file:///c:/Users
 - **Input:** `valor1: float`, `valor2: float`, `operacao: OperacaoEnum`
 - **Output:** `resultado: float`, `formula: str`
 
+### 4. `sqlite`
+- **Módulo:** `src/mcp_server/tools/sqlite/`
+- **Objetivo:** Executa operações de banco de dados SQLite determinísticas (CRUD: query, insert, select, update, delete).
+- **Input:** `action: SqliteAction`, `query: Optional[str]`, `table: Optional[str]`, `data: Optional[dict]`, `where: Optional[dict | str]`, `params: Optional[list | dict]`, `limit: int`, `db_name: str`
+- **Output:** `success: bool`, `message: str`, `rows: list[dict]`, `rows_affected: int`, `last_row_id: Optional[int]`, `columns: list[str]`
+
 ---
 
 ## 🔐 8. Arquitetura de Autenticação, Rate Limiting & Segurança
@@ -240,17 +246,17 @@ O arquivo [`.agents/skills/control-server-entreprise/SKILL.md`](file:///c:/Users
 O servidor exposto no Cloudflare Edge aplica proteção em camadas:
 1. **Rate Limit Perimetral:** Máximo de **60 requisições/hora por IP** (`CF-Connecting-IP`). Retorno `HTTP 429` com código `-32029`.
 2. **Bearer Token Guard:** Verificação estrita de cabeçalho `Authorization: Bearer <TOKEN>`.
-3. **Chave Mestra Determinística (MVP):** Token `"rezende"`. Retorno `HTTP 401` com código `-32000` em caso de token inválido ou ausente.
+3. **Validação Dinâmica no Redis:** Consulta instantânea $O(1)$ em `auth:token:<token>`. Retorno `HTTP 401` com código `-32000` em caso de token inválido, expirado ou ausente.
 
 ```mermaid
 flowchart TD
     Req["🌐 Requisição Externa no Edge"] --> CheckMethod{"🔀 Tipo de Requisição"}
     
-    CheckMethod -- "Navegador (GET / com Accept: text/html)" --> LandingPage["🎨 Portal Web: Captura de Lead (Backlog)"]
+    CheckMethod -- "Navegador (GET / com Accept: text/html)" --> LandingPage["🎨 Portal Web: Captura de Lead (Fase 5)"]
     
     CheckMethod -- "Cliente MCP (POST / JSON-RPC)" --> CheckRate{"⏱️ Rate Limit por IP (Máx 60 req/h)"}
     CheckRate -- "Cota Excedida" --> Err429["⛔ HTTP 429 Too Many Requests"]
-    CheckRate -- "Dentro da Cota" --> AuthGuard{"🛡️ Header Authorization: Bearer rezende?"}
+    CheckRate -- "Dentro da Cota" --> AuthGuard{"🛡️ Bearer Token Ativo no Redis?"}
     
     AuthGuard -- "Inválido / Ausente" --> Err401["⛔ HTTP 401 Unauthorized (-32000)"]
     AuthGuard -- "Válido" --> Exec["⚙️ Auto-Discovery & Execução da Tool"]
@@ -304,3 +310,22 @@ flowchart TD
   - [x] Executar suíte completa de testes via `pytest` (42/42 aprovados).
 - [x] **Task 4.2 — Smoke Test End-to-End:**
   - [x] Validar chamadas com `scripts/call_tool.py`.
+
+### 🔐 Fase 5: Portal Web, Autenticação e Gestão de Tokens (Concluída ✅)
+> *Especificação Técnica Completa:* [docs/portal-web-lead-capture.md](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/docs/portal-web-lead-capture.md)
+- [x] **Task 5.1 — Template Visual HTML/CSS (Concluído ✅):**
+  - [x] Template de autenticação em [`DEV/LP/auth.html`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/DEV/LP/auth.html).
+- [x] **Task 5.2 — Implementação da Tool `redis` & Conexão Edge (Concluído ✅):**
+  - [x] Gerenciador de conexão com suporte híbrido: **Upstash REST API** para Cloudflare Workers + **In-Memory Engine** para testes locais.
+  - [x] Suporte determinístico a `PING` (handshake e telemetria de latência), `GET`, `SET` (com `ex`/TTL), `DEL`, `EXISTS`, `EXPIRE`, `TTL`, `KEYS`, `HSET`, `HGET`, `HGETALL`, `HDEL`, `SADD`, `SMEMBERS`.
+  - [x] Cobertura de testes automatizados em [`tests/test_redis_tool.py`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/tests/test_redis_tool.py) com 100% de aprovação.
+- [x] **Task 5.3 — Implementação da Tool `auth` com Backend Redis (Concluído ✅):**
+  - [x] Ações `setup`, `token_generator`, `set_token`, `get_token` e persistência de **Nome e E-mail** nas chaves `auth:user:{email}`, `auth:token:{token}` e `auth:users:index`.
+  - [x] Validação dinâmica de Bearer Tokens integrada na guarda perimetral `security.py`.
+- [x] **Task 5.4 — Implementação da Tool `send_mail` via Gmail (Concluído ✅):**
+  - [x] Disparo transacional de e-mails em HTML e texto puro com entrega de credenciais via Gmail SMTP e tratamento estrito de erros (sem falsos positivos).
+- [x] **Task 5.5 — Integração no Edge Worker & Google OAuth2 (`src/entry.py`) (Concluído ✅):**
+  - [x] Servir interface em `GET /` com negociação de conteúdo `Accept: text/html` e endpoints `POST /api/auth/login` e `POST /api/auth/google`.
+  - [x] Validação dinâmica de Bearer Tokens no perímetro via `auth.get_token()` no Redis.
+- [x] **Task 5.6 — Suíte de Testes Integrada (`pytest`) (Concluído ✅):**
+  - [x] 73 testes automatizados cobrindo todas as tools, autenticação, redis, gmail (sucesso e falhas SMTP) e portal UI com 100% de aprovação.

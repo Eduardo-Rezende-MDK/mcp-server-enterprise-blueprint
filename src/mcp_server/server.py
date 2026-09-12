@@ -2,7 +2,10 @@
 
 from fastmcp import FastMCP
 from .registry import dispatch_tool
+from .tools.auth.schema import AuthAction
 from .tools.calc.schema import OperacaoEnum
+from .tools.redis.schema import RedisAction
+from .tools.sqlite.schema import SqliteAction
 
 # Inicialização do Servidor FastMCP
 mcp = FastMCP(
@@ -35,6 +38,116 @@ def hello(name: str) -> dict:
 def calc(valor1: float, valor2: float, operacao: OperacaoEnum) -> dict:
     """Executa cálculo aritmético determinístico (+, -, *, /)."""
     return dispatch_tool("calc", {"valor1": valor1, "valor2": valor2, "operacao": operacao})
+
+
+@mcp.tool(
+    name="sqlite",
+    description="Executa operações determinísticas em banco de dados SQLite (CRUD e consultas SQL parametrizadas).",
+)
+def sqlite(
+    action: SqliteAction = SqliteAction.QUERY,
+    query: str | None = None,
+    table: str | None = None,
+    data: dict | None = None,
+    where: dict | str | None = None,
+    params: list | dict | None = None,
+    limit: int = 100,
+    db_name: str = ":memory:",
+) -> dict:
+    """Executa operações CRUD e consultas no SQLite."""
+    return dispatch_tool(
+        "sqlite",
+        {
+            "action": action,
+            "query": query,
+            "table": table,
+            "data": data,
+            "where": where,
+            "params": params,
+            "limit": limit,
+            "db_name": db_name,
+        },
+    )
+
+
+@mcp.tool(
+    name="redis",
+    description="Executa operações determinísticas em Redis (chave-valor, hashes, sets, TTLs e verificação de conectividade PING).",
+)
+def redis(
+    action: RedisAction = RedisAction.PING,
+    key: str | None = None,
+    value: str | int | float | dict | list | None = None,
+    ex: int | None = None,
+    field: str | None = None,
+    fields: dict | None = None,
+    pattern: str = "*",
+    member: str | list | None = None,
+) -> dict:
+    """Executa operações no Redis (GET, SET, DEL, HGETALL, HSET, PING, etc.)."""
+    return dispatch_tool(
+        "redis",
+        {
+            "action": action,
+            "key": key,
+            "value": value,
+            "ex": ex,
+            "field": field,
+            "fields": fields,
+            "pattern": pattern,
+            "member": member,
+        },
+    )
+
+
+@mcp.tool(
+    name="auth",
+    description="Gerencia o ciclo de vida de autenticação, cadastro de usuários (nome e e-mail), emissão de tokens criptográficos e validação perimetral no Redis.",
+)
+def auth(
+    action: AuthAction = AuthAction.GET_TOKEN,
+    name: str | None = None,
+    email: str | None = None,
+    token: str | None = None,
+    provider: str = "local",
+    google_id: str | None = None,
+) -> dict:
+    """Executa operações de autenticação e gestão de tokens (set_token, get_token, setup, token_generator)."""
+    return dispatch_tool(
+        "auth",
+        {
+            "action": action,
+            "name": name,
+            "email": email,
+            "token": token,
+            "provider": provider,
+            "google_id": google_id,
+        },
+    )
+
+
+@mcp.tool(
+    name="send_mail",
+    description="Envia e-mails transacionais com Bearer Tokens de acesso e snippets de configuração via Gmail.",
+)
+def send_mail(
+    to_email: str,
+    recipient_name: str,
+    token: str,
+    subject: str = "Sua Chave de Acesso · MCP Server Enterprise",
+    server_url: str = "https://mcp-server-enterprise.mardukasoft.online",
+) -> dict:
+    """Dispara e-mail transacional via Gmail com chave de acesso e instruções de configuração."""
+    return dispatch_tool(
+        "send_mail",
+        {
+            "to_email": to_email,
+            "recipient_name": recipient_name,
+            "token": token,
+            "subject": subject,
+            "server_url": server_url,
+        },
+    )
 
 
 def run_server() -> None:

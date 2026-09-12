@@ -1,23 +1,25 @@
 """Serverless Entrypoint for Cloudflare Workers in Native Python.
 
-Exposes the MCP Enterprise Server deterministically over HTTP and JSON-RPC 2.0 with Bearer Authentication and Rate Limiting.
+Exposes the MCP Enterprise Server deterministically over HTTP, JSON-RPC 2.0 and Web Portal Auth with Redis Token Management.
 """
 
 import json
 from datetime import datetime, timezone
 from js import Headers, Response
+from urllib.parse import urlparse
 
 from mcp_server.registry import TOOL_DEFINITIONS, dispatch_tool
 from mcp_server.security import extract_client_ip, rate_limiter, validate_bearer_token
+from mcp_server.ui.portal import get_portal_html, handle_google_login, handle_lead_login
 
 
-def create_cors_headers() -> Headers:
+def create_cors_headers(content_type: str = "application/json; charset=utf-8") -> Headers:
     """Cria os cabeçalhos padrão para habilitar CORS universal."""
     headers = Headers.new()
     headers.set("Access-Control-Allow-Origin", "*")
     headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-mcp-version")
-    headers.set("Content-Type", "application/json; charset=utf-8")
+    headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-mcp-version, Accept")
+    headers.set("Content-Type", content_type)
     return headers
 
 
@@ -39,7 +41,9 @@ def format_mcp_tools_list():
 async def on_fetch(request, env):
     """Handler principal de requisições HTTP do Cloudflare Worker."""
     method = request.method
-    url = request.url
+    raw_url = str(request.url)
+    parsed_url = urlparse(raw_url)
+    pathname = parsed_url.path or "/"
 
     # 1. Tratar preflight CORS (OPTIONS)
     if method == "OPTIONS":
@@ -61,8 +65,21 @@ async def on_fetch(request, env):
         }
         return Response.new(json.dumps(rate_limit_error, ensure_ascii=False), status=429, headers=headers)
 
-    # 3. Rota de Health Check / Info (GET)
+    # 3. Rota GET: Negociação de Conteúdo (HTML Landing Page vs. JSON Info)
     if method == "GET":
+        # Extrai cabeçalho Accept
+        accept_header = ""
+        if hasattr(request.headers, "get"):
+            accept_header = request.headers.get("accept") or request.headers.get("Accept") or ""
+        elif isinstance(request.headers, dict):
+            accept_header = request.headers.get("accept") or request.headers.get("Accept") or ""
+
+        # Se acessado via navegador na raiz com Accept text/html, serve o Portal Web
+        if pathname == "/" and ("text/html" in accept_header or not accept_header):
+            html_headers = create_cors_headers("text/html; charset=utf-8")
+            return Response.new(get_portal_html(), status=200, headers=html_headers)
+
+        # Caso contrário, retorna metadados JSON do servidor MCP
         tool_names = [t.name for t in TOOL_DEFINITIONS]
         info_payload = {
             "status": "online",
@@ -73,7 +90,7 @@ async def on_fetch(request, env):
             "auth": {
                 "required": True,
                 "type": "Bearer",
-                "header": "Authorization: Bearer rezende",
+                "header": "Authorization: Bearer mcp_live_<token>",
             },
             "rate_limit": {
                 "limit": 60,
@@ -83,6 +100,9 @@ async def on_fetch(request, env):
             "tools_count": len(TOOL_DEFINITIONS),
             "tools": tool_names,
             "endpoints": {
+                "portal": "GET / (Navegador text/html)",
+                "auth_login": "POST /api/auth/login",
+                "auth_google": "POST /api/auth/google",
                 "rpc": "POST / (JSON-RPC 2.0)",
                 "sse": "GET /sse (Server-Sent Events)",
             },
@@ -90,7 +110,7 @@ async def on_fetch(request, env):
         }
         return Response.new(json.dumps(info_payload, indent=2, ensure_ascii=False), status=200, headers=headers)
 
-    # 4. Rota de Processamento JSON-RPC 2.0 (POST)
+    # 4. Rota POST: Auth REST Endpoints ou JSON-RPC 2.0
     if method == "POST":
         try:
             body_text = await request.text()
@@ -101,12 +121,27 @@ async def on_fetch(request, env):
                     headers=headers,
                 )
 
-            rpc_request = json.loads(body_text)
+            body_json = json.loads(body_text)
+
+            # 4.1. Endpoint REST: POST /api/auth/login
+            if pathname == "/api/auth/login":
+                login_res = handle_lead_login(body_json)
+                status_code = 200 if login_res.get("success") else 400
+                return Response.new(json.dumps(login_res, ensure_ascii=False), status=status_code, headers=headers)
+
+            # 4.2. Endpoint REST: POST /api/auth/google
+            if pathname == "/api/auth/google":
+                google_res = handle_google_login(body_json)
+                status_code = 200 if google_res.get("success") else 400
+                return Response.new(json.dumps(google_res, ensure_ascii=False), status=status_code, headers=headers)
+
+            # 4.3. Processamento JSON-RPC 2.0 (MCP Protocol)
+            rpc_request = body_json
             rpc_id = rpc_request.get("id")
             rpc_method = rpc_request.get("method")
             params = rpc_request.get("params", {})
 
-            # 4.1. Handshake: initialize (Permitido para negociação de capacidades)
+            # Handshake: initialize
             if rpc_method == "initialize":
                 response_data = {
                     "jsonrpc": "2.0",
@@ -125,11 +160,11 @@ async def on_fetch(request, env):
                 }
                 return Response.new(json.dumps(response_data, ensure_ascii=False), status=200, headers=headers)
 
-            # 4.2. Notificação: notifications/initialized
+            # Notificação: notifications/initialized
             if rpc_method == "notifications/initialized":
                 return Response.new("", status=204, headers=headers)
 
-            # 4.3. 🛡️ Verificação de Bearer Auth para métodos protegidos (tools/list e tools/call)
+            # 🛡️ Verificação de Bearer Auth dinâmica no Redis para métodos protegidos (tools/list e tools/call)
             auth_header = None
             if hasattr(request.headers, "get"):
                 auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
@@ -142,12 +177,12 @@ async def on_fetch(request, env):
                     "id": rpc_id,
                     "error": {
                         "code": -32000,
-                        "message": "Acesso não autorizado: Bearer Token ausente ou inválido.",
+                        "message": "Acesso não autorizado: Bearer Token ausente ou inválido no Redis.",
                     },
                 }
                 return Response.new(json.dumps(unauthorized_error, ensure_ascii=False), status=401, headers=headers)
 
-            # 4.4. Listagem de Tools Protegida: tools/list
+            # Listagem de Tools Protegida: tools/list
             if rpc_method == "tools/list":
                 response_data = {
                     "jsonrpc": "2.0",
@@ -158,7 +193,7 @@ async def on_fetch(request, env):
                 }
                 return Response.new(json.dumps(response_data, ensure_ascii=False), status=200, headers=headers)
 
-            # 4.5. Invocação de Tools Protegida: tools/call (Despacho Dinâmico)
+            # Invocação de Tools Protegida: tools/call
             if rpc_method == "tools/call":
                 tool_name = params.get("name")
                 args = params.get("arguments", {})

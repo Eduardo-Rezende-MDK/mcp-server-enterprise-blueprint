@@ -86,3 +86,144 @@ class TestCalcTool:
     def test_calc_operacao_invalida_lanca_validacao(self):
         with pytest.raises(ValidationError):
             CalcInput(valor1=10.0, valor2=5.0, operacao="invalida")  # type: ignore
+
+
+class TestSqliteTool:
+    """Testes unitários para a ferramenta 'sqlite' (CRUD e queries)."""
+
+    def test_sqlite_crud_completo(self):
+        from mcp_server.tools.sqlite import execute as execute_sqlite
+        from mcp_server.tools.sqlite.schema import SqliteAction, SqliteInput
+
+        # 1. CREATE TABLE
+        create_res = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.QUERY,
+                query="CREATE TABLE IF NOT EXISTS test_users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT)",
+                db_name=":memory:",
+            )
+        )
+        assert create_res.success is True
+
+        # 2. INSERT
+        insert_res = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.INSERT,
+                table="test_users",
+                data={"name": "Alice Silva", "email": "alice@exemplo.com"},
+                db_name=":memory:",
+            )
+        )
+        assert insert_res.success is True
+        assert insert_res.rows_affected == 1
+        assert insert_res.last_row_id == 1
+
+        # 3. SELECT
+        select_res = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.SELECT,
+                table="test_users",
+                where={"name": "Alice Silva"},
+                db_name=":memory:",
+            )
+        )
+        assert select_res.success is True
+        assert len(select_res.rows) == 1
+        assert select_res.rows[0]["email"] == "alice@exemplo.com"
+
+        # 4. UPDATE
+        update_res = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.UPDATE,
+                table="test_users",
+                data={"email": "alice.nova@exemplo.com"},
+                where={"id": 1},
+                db_name=":memory:",
+            )
+        )
+        assert update_res.success is True
+        assert update_res.rows_affected == 1
+
+        # 5. VERIFY UPDATE
+        select_updated = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.SELECT,
+                table="test_users",
+                where={"id": 1},
+                db_name=":memory:",
+            )
+        )
+        assert select_updated.rows[0]["email"] == "alice.nova@exemplo.com"
+
+        # 6. DELETE
+        delete_res = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.DELETE,
+                table="test_users",
+                where={"id": 1},
+                db_name=":memory:",
+            )
+        )
+        assert delete_res.success is True
+        assert delete_res.rows_affected == 1
+
+        # 7. VERIFY DELETE
+        select_empty = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.SELECT,
+                table="test_users",
+                where={"id": 1},
+                db_name=":memory:",
+            )
+        )
+        assert len(select_empty.rows) == 0
+
+    def test_sqlite_query_parametrizada(self):
+        from mcp_server.tools.sqlite import execute as execute_sqlite
+        from mcp_server.tools.sqlite.schema import SqliteAction, SqliteInput
+
+        # Setup
+        execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.QUERY,
+                query="CREATE TABLE IF NOT EXISTS test_products (id INTEGER PRIMARY KEY, title TEXT, price REAL)",
+                db_name=":memory:",
+            )
+        )
+        execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.QUERY,
+                query="INSERT INTO test_products (id, title, price) VALUES (?, ?, ?)",
+                params=[1, "Notebook", 4500.50],
+                db_name=":memory:",
+            )
+        )
+
+        # Query com parametro
+        res = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.QUERY,
+                query="SELECT * FROM test_products WHERE price > ?",
+                params=[4000.0],
+                db_name=":memory:",
+            )
+        )
+        assert res.success is True
+        assert len(res.rows) == 1
+        assert res.rows[0]["title"] == "Notebook"
+        assert res.columns == ["id", "title", "price"]
+
+    def test_sqlite_rejeita_identificador_invalido(self):
+        from mcp_server.tools.sqlite import execute as execute_sqlite
+        from mcp_server.tools.sqlite.schema import SqliteAction, SqliteInput
+
+        res = execute_sqlite(
+            SqliteInput(
+                action=SqliteAction.SELECT,
+                table="users; DROP TABLE users;--",
+                db_name=":memory:",
+            )
+        )
+        assert res.success is False
+        assert "Identificador SQL inválido" in res.message
+

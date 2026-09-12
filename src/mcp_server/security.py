@@ -3,22 +3,19 @@
 import time
 from typing import Any, Optional
 
-# Chave Mestra Determinística (Hardcoded)
-MASTER_BEARER_TOKEN = "rezende"
-
 # Limite Perimetral de Requisições
 RATE_LIMIT_PER_HOUR = 60
 RATE_LIMIT_WINDOW_SECONDS = 3600
 
 
 def validate_bearer_token(authorization_header: Optional[str]) -> bool:
-    """Valida estritamente se o cabeçalho Authorization contém o Bearer Token 'rezende'.
+    """Valida se o cabeçalho Authorization contém um Bearer Token ativo no Redis.
     
     Args:
-        authorization_header: Valor do cabeçalho HTTP Authorization (ex: 'Bearer rezende')
+        authorization_header: Valor do cabeçalho HTTP Authorization (ex: 'Bearer mcp_live_...')
         
     Returns:
-        True se o token for estritamente válido, False caso contrário.
+        True se o token for estritamente válido e ativo no Redis, False caso contrário.
     """
     if not authorization_header or not isinstance(authorization_header, str):
         return False
@@ -31,7 +28,13 @@ def validate_bearer_token(authorization_header: Optional[str]) -> bool:
     if prefix.lower() != "bearer":
         return False
     
-    return token == MASTER_BEARER_TOKEN
+    # Validação exclusiva de Token no Redis
+    try:
+        from .tools.auth.handler import execute as execute_auth
+        auth_res = execute_auth({"action": "get_token", "token": token})
+        return bool(auth_res.get("success") and auth_res.get("is_valid"))
+    except Exception:
+        return False
 
 
 def extract_client_ip(headers: Any) -> str:

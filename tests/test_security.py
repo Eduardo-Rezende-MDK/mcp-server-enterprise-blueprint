@@ -4,30 +4,44 @@ import time
 import pytest
 
 from mcp_server.security import (
-    MASTER_BEARER_TOKEN,
     RateLimiter,
     extract_client_ip,
     validate_bearer_token,
 )
+from mcp_server.registry import dispatch_tool
 
 
 class TestTokenValidation:
-    """Testes para a validação estrita de Bearer Token."""
+    """Testes para a validação estrita de Bearer Token via Redis."""
+
+    @pytest.fixture(autouse=True)
+    def setup_token(self):
+        """Cadastra um token de teste no Redis."""
+        res = dispatch_tool("auth", {
+            "action": "set_token",
+            "name": "Usuario Teste",
+            "email": "teste.security@empresa.com",
+        })
+        self.valid_token = res["token"]
 
     def test_bearer_token_valido(self):
-        assert validate_bearer_token("Bearer rezende") is True
+        assert validate_bearer_token(f"Bearer {self.valid_token}") is True
 
     def test_bearer_token_case_insensitive_prefix(self):
-        assert validate_bearer_token("bearer rezende") is True
-        assert validate_bearer_token("BEARER rezende") is True
+        assert validate_bearer_token(f"bearer {self.valid_token}") is True
+        assert validate_bearer_token(f"BEARER {self.valid_token}") is True
+
+    def test_bearer_token_hardcode_rezende_rejeitado(self):
+        """Garante que a antiga chave mestra hardcoded 'rezende' não existe mais e é rejeitada."""
+        assert validate_bearer_token("Bearer rezende") is False
 
     def test_bearer_token_invalido(self):
         assert validate_bearer_token("Bearer token_invalido") is False
         assert validate_bearer_token("Bearer 123456") is False
 
     def test_bearer_token_sem_prefixo(self):
-        assert validate_bearer_token("rezende") is False
-        assert validate_bearer_token("Basic rezende") is False
+        assert validate_bearer_token(self.valid_token) is False
+        assert validate_bearer_token(f"Basic {self.valid_token}") is False
 
     def test_bearer_token_nulo_ou_vazio(self):
         assert validate_bearer_token(None) is False
@@ -36,7 +50,7 @@ class TestTokenValidation:
 
     def test_bearer_token_malformado(self):
         assert validate_bearer_token("Bearer") is False
-        assert validate_bearer_token("Bearer rezende extra_params") is False
+        assert validate_bearer_token(f"Bearer {self.valid_token} extra_params") is False
         assert validate_bearer_token("Bearer   ") is False
 
 
