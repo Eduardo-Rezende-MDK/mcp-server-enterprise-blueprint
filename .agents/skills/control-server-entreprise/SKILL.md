@@ -105,17 +105,32 @@ powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entrepr
 
 ---
 
-## 🛠️ Catálogo Completo de Ações da Skill
+## 💬 Experiência do Desenvolvedor (100% LLM & Linguagem Natural)
 
-| Ação | Finalidade | Exemplo de Comando |
-| :--- | :--- | :--- |
-| **`check_env`** | Sonda gaps e dados pré-existentes (`installed_state`) | `powershell -File control.ps1 -Action check_env -JsonOutput` |
-| **`clean`** | Reseta/limpa `.venv`, `mcp_config.json`, `.env` e caches | `powershell -File control.ps1 -Action clean -Force` |
-| **`auth`** | Valida remotamente o Bearer Token no Cloudflare Edge | `powershell -File control.ps1 -Action auth -Token "mcp_live_..."` |
-| **`install_deps`** | Cria `.venv` e instala dependências do `requirements.txt` | `powershell -File control.ps1 -Action install_deps` |
-| **`setup_mode`** | Configura automaticamente o `mcp_config.json` para Modo 1, 2 ou 3 | `powershell -File control.ps1 -Action setup_mode -Mode 2 -Token "..."` |
-| **`discover`** | Consulta o catálogo dinâmico de ferramentas e schemas no Edge | `powershell -File control.ps1 -Action discover` |
-| **`call`** | Invoca uma ferramenta determinística via JSON-RPC | `powershell -File control.ps1 -Action call -Tool hello -ArgsJson '{"name":"Eduardo"}'` |
-| **`status`** | Consulta a saúde e metadados da instância online | `powershell -File control.ps1 -Action status` |
-| **`test`** | Executa validação protocolar ponta a ponta | `powershell -File control.ps1 -Action test` |
-| **`deploy`** | Publica o Worker no Cloudflare Edge via Wrangler | `powershell -File control.ps1 -Action deploy` |
+O desenvolvedor **nunca precisa executar comandos CLI para usar ferramentas**. A interação é feita em linguagem natural diretamente no chat com a IA:
+
+- **Usuário:** *"Quanto é 150 dividido por 25?"* 
+  👉 **LLM:** Chama a tool `calc(valor1=150, valor2=25, operacao='/')` e devolve `6`.
+- **Usuário:** *"Faça uma simulação de financiamento de 100k em 120 meses a 10% ao ano"* 
+  👉 **LLM:** Chama a tool `benchmark_cost(...)` e gera a tabela completa.
+- **Usuário:** *"Crie uma tabela de tarefas e insira 3 itens no SQLite"* 
+  👉 **LLM:** Chama a tool `sqlite(...)` deterministicamente.
+- **Usuário:** *"Quais ferramentas você tem disponíveis no servidor?"* 
+  👉 **LLM:** Chama a tool `discover()` e lista as capacidades em tempo real.
+
+---
+
+## 🛠️ Ações Internas do Script de Infraestrutura (`control.ps1`)
+
+> **Nota:** As ações abaixo são utilizadas pelo Agente de IA nos bastidores para automação de ambiente, CI/CD e smoke tests:
+
+| Ação | Finalidade |
+| :--- | :--- |
+| **`check_env`** | Sonda gaps de sistema e dados pré-existentes (`installed_state`) |
+| **`clean`** | Reseta/limpa `.venv`, `mcp_config.json`, `.env` e caches |
+| **`auth`** | Valida remotamente o Bearer Token no Cloudflare Edge |
+| **`install_deps`** | Cria `.venv` e instala dependências do `requirements.txt` |
+| **`setup_mode`** | Configura automaticamente o `mcp_config.json` para Modo 1, 2 ou 3 |
+| **`status`** | Consulta a saúde, latência e metadados da instância online |
+| **`test`** | Executa validação protocolar ponta a ponta |
+| **`deploy`** | Publica o Worker no Cloudflare Edge via Wrangler |

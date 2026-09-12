@@ -22,9 +22,9 @@ Este arquivo contém as diretrizes e regras obrigatórias que todos os agentes d
 
 ---
 
-## 4. Prioridade Absoluta ao Servidor MCP Real na Cloudflare
+## 4. Prioridade Absoluta ao Servidor MCP Real na Cloudflare & Uso Nativo pelo LLM
 - **Execução Real Obrigatória:** Sempre que o usuário solicitar uma ação ou ferramenta do MCP (`hello`, `calc`, `discover`, etc.), o agente **DEVE obrigatoriamente realizar a chamada real no servidor MCP hospedado na Cloudflare** (`mcp-server-enterprise` via protocolo MCP).
-- **Proibição de Scripts Locais `.py` como Substitutos:** O agente **NÃO DEVE** executar scripts locais `.py` (como `scripts/call_tool.py`, testes locais ou execuções simuladas) no lugar do servidor MCP real, salvo se o usuário solicitar expressamente o contrário.
+- **Proibição de Comandos CLI de Tools para o Usuário:** O agente **NUNCA DEVE** instruir ou sugerir ao usuário que execute ferramentas MCP digitando comandos CLI/PowerShell (`powershell ... -Action call -Tool ...`). O uso de ferramentas MCP deve ser **100% nativo pelo LLM** via protocolo MCP / prompts em linguagem natural. Scripts determinísticos (`control.ps1`) são de uso estritamente interno para infraestrutura, onboarding e diagnóstico de ambiente.
 
 ---
 
