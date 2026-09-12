@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "mcp-server-enterprise": {
+      "url": "https://mcp-server-enterprise.danicardoso-3011.workers.dev"
+    },
+    "mcp-server-enterprise-local": {
+      "command": "c:\\Users\\rezen\\Documents\\GitHub\\mcp-server-enterprise-blueprint\\.venv\\Scripts\\python.exe",
+      "args": [
+        "-m",
+        "src.mcp_server.server"
+      ],
+      "cwd": "c:\\Users\\rezen\\Documents\\GitHub\\mcp-server-enterprise-blueprint"
+    }
+  }
+}
