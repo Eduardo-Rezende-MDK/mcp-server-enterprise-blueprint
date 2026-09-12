@@ -300,10 +300,45 @@ def get_portal_html() -> str:
       }
     }
 
+    function handleCredentialResponse(response) {
+      if (response && response.credential) {
+        const toast = document.getElementById('feedbackToast');
+        fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            toast.className = 'toast toast-success';
+            toast.style.display = 'block';
+            toast.innerHTML = `<strong>Autenticado via Google!</strong><br>Usuário: <strong>${data.user ? data.user.name : ''}</strong> (${data.user ? data.user.email : ''})<br>Chave de acesso vinculada:<br><div class="token-display">Bearer ${data.token}</div>`;
+          } else {
+            toast.className = 'toast toast-error';
+            toast.style.display = 'block';
+            toast.innerHTML = `<strong>Erro Google:</strong> ${data.error || 'Falha ao autenticar'}`;
+          }
+        })
+        .catch(err => {
+          toast.className = 'toast toast-error';
+          toast.style.display = 'block';
+          toast.innerHTML = `<strong>Erro de Conexão:</strong> ${err.message}`;
+        });
+      }
+    }
+
     async function handleGoogleSignIn() {
-      const name = prompt("Informe seu nome para login social com Google:", "Lead Google");
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.prompt();
+          return;
+        } catch (e) {}
+      }
+
+      const name = prompt("Informe seu nome para login Google:", "Eduardo Rezende");
       if (!name) return;
-      const email = prompt("Informe seu e-mail do Google:", "lead.google@gmail.com");
+      const email = prompt("Informe seu e-mail do Google:", "dev@exemplo.com");
       if (!email) return;
 
       const toast = document.getElementById('feedbackToast');
@@ -311,16 +346,22 @@ def get_portal_html() -> str:
         const response = await fetch('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, google_id: 'google_' + Date.now() })
+          body: JSON.stringify({ name, email, google_id: 'google_user_' + Date.now() })
         });
         const data = await response.json();
         if (response.ok && data.success) {
           toast.className = 'toast toast-success';
           toast.style.display = 'block';
           toast.innerHTML = `<strong>Autenticado via Google!</strong><br>Chave de acesso vinculada:<br><div class="token-display">Bearer ${data.token}</div>`;
+        } else {
+          toast.className = 'toast toast-error';
+          toast.style.display = 'block';
+          toast.innerHTML = `<strong>Erro:</strong> ${data.error || 'Falha na autenticação'}`;
         }
       } catch (err) {
-        alert('Erro ao autenticar com Google: ' + err.message);
+        toast.className = 'toast toast-error';
+        toast.style.display = 'block';
+        toast.innerHTML = `<strong>Erro de Conexão:</strong> ${err.message}`;
       }
     }
   </script>
@@ -385,10 +426,35 @@ def handle_lead_login(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+import base64
+
+
+def _decode_jwt_payload(token: str) -> Dict[str, Any]:
+    """Decodifica as claims do payload de um JWT sem depender de bibliotecas externas."""
+    try:
+        parts = token.split(".")
+        if len(parts) >= 2:
+            payload_b64 = parts[1]
+            rem = len(payload_b64) % 4
+            if rem > 0:
+                payload_b64 += "=" * (4 - rem)
+            payload_bytes = base64.urlsafe_b64decode(payload_b64.encode("utf-8"))
+            return json.loads(payload_bytes.decode("utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
 def handle_google_login(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Processa autenticação delegada via Google Identity / OAuth2."""
+    """Processa autenticação delegada via Google Identity / OAuth2 (JWT ou payload estruturado)."""
+    credential = data.get("credential") or data.get("id_token")
+    if credential and isinstance(credential, str):
+        claims = _decode_jwt_payload(credential)
+        if claims:
+            data = {**claims, **data}
+
     name = (data.get("name") or "Google User").strip()
-    email = (data.get("email") or "").strip()
+    email = (data.get("email") or "").strip().lower()
     google_id = (data.get("google_id") or data.get("sub") or "").strip()
 
     if not email:
