@@ -3,6 +3,7 @@
 from fastmcp import FastMCP
 from .registry import dispatch_tool
 from .tools.auth.schema import AuthAction
+from .tools.benchmark_cost.schema import SistemaAmortizacao
 from .tools.calc.schema import OperacaoEnum
 from .tools.redis.schema import RedisAction
 from .tools.sqlite.schema import SqliteAction
@@ -11,6 +12,7 @@ from .tools.sqlite.schema import SqliteAction
 mcp = FastMCP(
     name="mcp-server-enterprise",
 )
+
 
 
 @mcp.tool(
@@ -148,6 +150,29 @@ def send_mail(
             "server_url": server_url,
         },
     )
+
+
+@mcp.tool(
+    name="benchmark_cost",
+    description="Simulador de amortização financeira (SAC/PRICE) de alta complexidade com telemetria determinística de economia de tokens.",
+)
+def benchmark_cost(
+    principal: float | None = None,
+    taxa_anual: float | None = None,
+    meses: int | None = None,
+    sistema: SistemaAmortizacao | None = None,
+) -> dict:
+    """Executa simulação financeira determinística e retorna métricas de amortização e economia de tokens."""
+    return dispatch_tool(
+        "benchmark_cost",
+        {
+            "principal": principal,
+            "taxa_anual": taxa_anual,
+            "meses": meses,
+            "sistema": sistema,
+        },
+    )
+
 
 
 def run_server() -> None:

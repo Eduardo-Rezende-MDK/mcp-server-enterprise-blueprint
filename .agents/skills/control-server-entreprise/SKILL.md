@@ -1,6 +1,6 @@
 ---
 name: control-server-entreprise
-description: "Skill 100% auto-contida para onboarding/instalação, validação de token, diagnóstico de ambiente, invocação de ferramentas determinísticas, criação de tools e gestão do servidor MCP Enterprise no Cloudflare Workers Edge."
+description: "Skill 100% auto-contida para infraestrutura, onboarding, diagnóstico de ambiente, validação de token, configuração de modos e governança do servidor MCP Enterprise."
 category: cloud-deployment
 risk: low
 source: workspace
@@ -9,14 +9,16 @@ date_added: "2026-09-11"
 
 # 🎛️ Control Server Enterprise (Portátil, Auto-Contido & Extensível)
 
-Skill **100% auto-contida e independente de código-fonte local**. Permite que qualquer agente de IA ou desenvolvedor conduza o onboarding completo, valide tokens/licenças remotamente, diagnostique gaps no ambiente, instale dependências, resete/reinstale ambientes, configure os 3 modos de execução (Serverless 24/7, Túnel Remoto HTTPS ou Local Stdio Puro) e invoque ferramentas determinísticas contra o servidor **`mcp-server-enterprise`** no Cloudflare Workers Edge.
+Skill **100% auto-contida e independente de código-fonte local**. Permite que qualquer agente de IA ou desenvolvedor conduza o onboarding completo, valide tokens/licenças remotamente, diagnostique gaps no ambiente, instale dependências, resete/reinstale ambientes, configure os 3 modos de execução (Serverless 24/7, Túnel Remoto HTTPS ou Local Stdio Puro), sincronize segredos e gere scaffolding para novas ferramentas.
+
+> **Importante:** As ferramentas de negócio (`calc`, `hello`, `sqlite`, `redis`, `discover`, `benchmark_cost`, etc.) pertencem **exclusivamente à camada do protocolo MCP** e são executadas **100% nativamente pelo LLM**. O script determinístico `control.ps1` é restrito à infraestrutura, onboarding e diagnóstico.
 
 ---
 
 ## 🏛️ Racional de Engenharia (Camada Cognitiva vs. Determinística)
 
-- **🧠 Camada Cognitiva (LLM / Agente):** Conduz o diálogo com o desenvolvedor, verifica dados existentes, pergunta se deseja reinstalar, solicita o token, exibe relatórios claros e orienta a escolha do modo de execução.
-- **⚙️ Camada Determinística (Scripts Auto-Contidos & Protocolo MCP):** Executa validações de token via JSON-RPC 2.0 no Edge (`https://mcp-server-enterprise.mardukasoft.online`), limpa `.venv`/configs em caso de reset, sonda o ambiente, configura túneis e escreve `mcp_config.json` sem alucinações.
+- **🧠 Camada Cognitiva (LLM / Agente):** Conduz o diálogo com o desenvolvedor, solicita o token, orienta a escolha do modo de execução e **invoca nativamente as ferramentas MCP** via protocolo.
+- **⚙️ Camada Determinística (Scripts Auto-Contidos de Infraestrutura):** Executa validações de token via JSON-RPC no Edge (`https://mcp-server-enterprise.mardukasoft.online`), limpa `.venv`/configs em caso de reset, sonda o ambiente, configura túneis e escreve `mcp_config.json` sem alucinações.
 
 ```mermaid
 flowchart TD
@@ -27,15 +29,13 @@ flowchart TD
     B -->|"1. auth"| C["Validação de Token no Edge: https://mcp-server-enterprise.mardukasoft.online"]
     B -->|"2. install_deps"| E["Instalação Automática: .venv + requirements.txt"]
     B -->|"3. setup_mode"| F["Configuração Determinística: Modo 1 (Serverless), Modo 2 (Túnel) ou Modo 3 (Stdio)"]
-    B -->|"4. discover / call"| G["Invocação de Tools: discover, hello, calc, sqlite, redis, etc."]
-    B -->|"5. test"| H["Smoke Test Protocolar: Validação ponta a ponta no Edge"]
+    B -->|"4. Chamada Nativa MCP"| G["Validação e Uso Nativo pelo LLM: hello, calc, discover, etc."]
     
     C --> I["Cloudflare Workers Edge"]
     D --> J["Relatório Estruturado em JSON"]
     E --> K["Ambiente Virtual Pronto"]
     F --> L["Arquivo mcp_config.json Configurado"]
     G --> I
-    H --> I
 ```
 
 ---
@@ -62,8 +62,8 @@ Quando o usuário pedir para **instalar**, **configurar** ou **onboardar** o rep
 ---
 
 ### Passo 1: Solicitação e Validação do Token de Acesso
-1. O Agente solicita o Token de Acesso / Licença ao usuário (ou orienta a abrir o portal no navegador: `https://mcp-server-enterprise.mardukasoft.online`).
-2. O Agente valida o token deterministicamente chamando:
+1. O Agente **solicita obrigatoriamente o Token de Acesso / Licença ao usuário no chat** (nunca assumindo tokens antigos silenciosamente após uma limpeza). Caso o usuário ainda não possua, o agente orienta a abrir o portal no navegador: `https://mcp-server-enterprise.mardukasoft.online`.
+2. O Agente valida o token fornecido deterministicamente chamando:
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action auth -Token "<TOKEN_DO_USUARIO>"
    ```
@@ -80,28 +80,33 @@ Quando o usuário pedir para **instalar**, **configurar** ou **onboardar** o rep
 
 ---
 
-### Passo 3: Seleção do Modo de Execução
-O Agente apresenta os 3 modos de forma concisa e colorida:
-- **[1] ☁️ Serverless Edge:** 24/7 na Cloudflare (Deploy automático via Wrangler).
-- **[2] 🚇 Túnel Remoto:** Python Local + Túnel HTTPS automático (`cloudflared`).
-- **[3] ⚡ Local Stdio:** 100% no computador para IDEs locais (Padrão).
+### Passo 3: Seleção Obrigatória do Modo de Execução (Sem Default)
+O Agente apresenta os 3 modos de forma concisa e aguarda a decisão explícita do desenvolvedor (não há valor default assumido):
+- **[1] ☁️ Serverless Edge:** 24/7 na Cloudflare (Acesso direto HTTP/SSE com Token de Produção).
+- **[2] 🚇 Túnel Remoto:** Python Local + Túnel HTTPS automático (`cloudflared` + Token).
+- **[3] ⚡ Local Stdio:** 100% no computador para IDEs locais via `.venv`.
 
-Após a escolha do usuário, o Agente executa a configuração automática:
+Após a escolha do usuário, o Agente executa a configuração determinística com o modo selecionado:
 ```powershell
-# Exemplo para Modo 2 (Túnel)
+# Exemplo para Modo 1 (Serverless Edge)
+powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action setup_mode -Mode 1 -Token "<TOKEN>"
+
+# Exemplo para Modo 2 (Túnel Remoto HTTPS)
 powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action setup_mode -Mode 2 -Token "<TOKEN>"
 
-# Exemplo para Modo 3 (Local Stdio)
+# Exemplo para Modo 3 (Local Stdio Puro)
 powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action setup_mode -Mode 3
 ```
 
 ---
 
-### Passo 4: Smoke Test e Confirmação de Prontidão
-O Agente executa o teste protocolar para confirmar que o servidor responde perfeitamente:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action test
-```
+### Passo 4: Validação Nativa via MCP & Confirmação de Prontidão
+Após a configuração do modo, o Agente **NÃO executa comandos CLI locais para testar tools**. A validação é feita **100% nativamente pelo LLM via protocolo MCP**, executando uma chamada real de teste (ex: `hello` ou `calc`) contra o servidor e confirmando a resposta ao desenvolvedor:
+
+- **Exemplo de Teste de Prontidão pelo LLM:**
+  - 👉 O Agente invoca a tool nativa MCP `hello(name="Desenvolvedor")` ou `calc(valor1=10, valor2=2, operacao="*")`.
+  - 👉 Recebe o resultado do servidor no Cloudflare Edge.
+  - 👉 Apresenta a confirmação no chat: *"Servidor MCP Enterprise configurado, testado e pronto para uso!"*.
 
 ---
 
@@ -122,17 +127,17 @@ O desenvolvedor **nunca precisa executar comandos CLI para usar ferramentas**. A
 
 ## 🛠️ Ações Internas do Script de Infraestrutura (`control.ps1`)
 
-> **Nota:** As ações abaixo são utilizadas pelo Agente de IA nos bastidores para automação de ambiente, CI/CD e smoke tests:
+> **Nota:** O script `control.ps1` é estritamente dedicado à infraestrutura e automação de ambiente. Não executa ferramentas de negócio do MCP.
 
 | Ação | Finalidade |
 | :--- | :--- |
+| **`install` / `onboard`** | Esteira completa de onboarding (reset opcional, diagnóstico, deps, modo obrigatório e status) |
 | **`check_env`** | Sonda gaps de sistema e dados pré-existentes (`installed_state`) |
-| **`clean`** | Reseta/limpa `.venv`, `mcp_config.json`, `.env` e caches |
-| **`auth`** | Valida remotamente o Bearer Token no Cloudflare Edge |
-| **`install_deps`** | Cria `.venv` e instala dependências do `requirements.txt` |
-| **`setup_mode`** | Configura automaticamente o `mcp_config.json` para Modo 1, 2 ou 3 |
-| **`status`** | Consulta a saúde, latência e metadados da instância online |
-| **`test`** | Executa validação protocolar ponta a ponta |
+| **`clean`** | Reseta/limpa `.venv`, `mcp_config.json`, `.env`, `.dev.vars`, `.wrangler` e logout |
+| **`auth`** | Valida remotamente o Bearer Token no Cloudflare Edge durante o setup |
+| **`install_deps`** | Cria `.venv` e instala dependências do `requirements.txt` e modo editável |
+| **`setup_mode`** | Configura `mcp_config.json` para Modo 1, 2 ou 3 (**seleção obrigatória, sem valor default**) |
+| **`status`** | Consulta a saúde HTTP, latência e metadados da instância online |
 | **`deploy`** | Publica o Worker no Cloudflare Edge via Wrangler |
 | **`create_tool`** | Gera scaffolding completo de nova tool a partir do template canônico |
 | **`sync_secrets`** | Sincroniza segredos de `.dev.vars` / `.env` diretamente para o Cloudflare Workers |

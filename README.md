@@ -99,10 +99,6 @@ mcp-server-enterprise-blueprint/
 │           ├── redis/              # ⚡ Operações Redis / Upstash Edge
 │           ├── send_mail/          # 📬 Envio Transacional de E-mails
 │           └── sqlite/             # 🗄️ Banco Relacional SQLite
-├── scripts/
-│   ├── call_tool.py                # Cliente CLI para testes e chamadas rápidas
-│   └── create_tool.py              # Gerador de Scaffold automático de novas tools
-├── docs/                           # 📚 Especificações Técnicas e Manuais de Arquitetura
 ├── tests/                          # 🧪 Suíte de Testes Automatizados (pytest)
 ├── wrangler.toml                   # Configuração de Deploy no Cloudflare Workers
 ├── pyproject.toml                  # Dependências e Metadados do Pacote Python
@@ -128,8 +124,9 @@ Utilize o scaffold automatizado para gerar novas ferramentas aderentes ao contra
 
 ```bash
 # Gerar uma nova ferramenta chamada 'cotacao_moeda'
-python scripts/create_tool.py cotacao_moeda --desc "Consulta cotações de moedas em tempo real"
+python -m src.mcp_server.scaffold cotacao_moeda --desc "Consulta cotações de moedas em tempo real"
 ```
+
 
 ---
 
@@ -194,7 +191,7 @@ Adicione o servidor à configuração de MCP (`mcp_config.json` ou `.agents/mcp_
 {
   "mcpServers": {
     "mcp-server-enterprise": {
-      "url": "https://mcp-server-enterprise.danicardoso-3011.workers.dev",
+      "url": "https://mcp-server-enterprise.mardukasoft.online",
       "headers": {
         "Authorization": "Bearer SEU_TOKEN_AQUI"
       }
@@ -203,7 +200,7 @@ Adicione o servidor à configuração de MCP (`mcp_config.json` ou `.agents/mcp_
 }
 ```
 
-> **Obtenha seu token:** Acesse `https://mcp-server-enterprise.danicardoso-3011.workers.dev` no navegador para gerar sua chave de acesso em segundos.
+> **Obtenha seu token:** Acesse `https://mcp-server-enterprise.mardukasoft.online` no navegador para gerar sua chave de acesso em segundos.
 
 ---
 
@@ -218,12 +215,13 @@ pip install -r requirements.txt
 # 2. Executar testes de validação
 pytest -v
 
-# 3. Sincronizar segredos com a Cloudflare (executar uma única vez ou quando mudar chaves)
-python scripts/sync_secrets.py
+# 3. Sincronizar segredos com a Cloudflare (via skill de controle determinístico)
+powershell -ExecutionPolicy Bypass -File ./.agents/skills/control-server-entreprise/scripts/control.ps1 -Action sync_secrets
 
 # 4. Deploy no Cloudflare Workers
 npx wrangler deploy
 ```
+
 
 - **Endpoint de Produção:** `https://<seu-worker>.<seu-subdominio>.workers.dev`
 - **Domínio Personalizado (Opcional):** Configurado na seção `routes` do `wrangler.toml`

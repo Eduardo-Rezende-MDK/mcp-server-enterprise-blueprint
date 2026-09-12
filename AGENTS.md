@@ -46,3 +46,12 @@ Sempre que o usuário enviar o comando ou alias **"comparativo_token_cost"** (ou
    - **Tabela Comparativa de Tokens:** Tokens de Prompt (Entrada), Tokens de Raciocínio (Thinking/CoT), Tokens de Saída (Output), Total de Tokens, Risco de Alucinação e Latência.
    - **Cálculo da Economia Real:** Demonstrar a redução percentual de tokens obtida pela abordagem FastMCP (~80% a 95%).
    - **Diagrama Mermaid:** Fluxo comparativo com rótulos de nós entre aspas duplas.
+
+
+---
+
+## 7. Não execute teste de forma massiva apos qualquer prompt do usuário
+- **Escopo Direto:** Excute rotinas de teste somente quando explicitamente solicitado pelo usuário, ou caso seja necessario para encontrar um erro.  
+
+
+---
