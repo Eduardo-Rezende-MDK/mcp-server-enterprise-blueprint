@@ -1,6 +1,6 @@
 ---
 name: control-server-entreprise
-description: "Skill 100% auto-contida para invocar ferramentas determinísticas, criar novas tools, testar e gerenciar o servidor MCP Enterprise no Cloudflare Workers Edge a partir de QUALQUER projeto."
+description: "Skill 100% auto-contida para onboarding/instalação, validação de token, diagnóstico de ambiente, invocação de ferramentas determinísticas, criação de tools e gestão do servidor MCP Enterprise no Cloudflare Workers Edge."
 category: cloud-deployment
 risk: low
 source: workspace
@@ -9,152 +9,103 @@ date_added: "2026-09-11"
 
 # 🎛️ Control Server Enterprise (Portátil, Auto-Contido & Extensível)
 
-Skill **100% auto-contida e independente de código-fonte local**. Permite que qualquer projeto ou agente de IA descubra ferramentas, inspecione schemas, crie novas tools padronizadas, invoque cálculos determinísticos e consulte a integridade do servidor **`mcp-server-enterprise`** hospedado no Cloudflare Workers Edge.
+Skill **100% auto-contida e independente de código-fonte local**. Permite que qualquer agente de IA ou desenvolvedor conduza o onboarding completo, valide tokens/licenças remotamente, diagnostique gaps no ambiente, instale dependências, configure os 3 modos de execução (Serverless 24/7, Túnel Remoto HTTPS ou Local Stdio Puro) e invoque ferramentas determinísticas contra o servidor **`mcp-server-enterprise`** no Cloudflare Workers Edge.
 
 ---
 
-## 🏛️ Racional de Engenharia (Cognitivo vs. Determinístico)
+## 🏛️ Racional de Engenharia (Camada Cognitiva vs. Determinística)
 
-- **🧠 Camada Cognitiva (LLM):** Extrai a intenção do usuário em linguagem natural e delega a execução das ferramentas para a skill determinística.
-- **⚙️ Camada Determinística (Scripts Auto-Contidos & FastMCP):** Conecta diretamente via JSON-RPC 2.0 / HTTP ao Cloudflare Workers Edge ou executa localmente, eliminando alucinações matemáticas ou de formatação temporal.
+- **🧠 Camada Cognitiva (LLM / Agente):** Conduz o diálogo com o desenvolvedor, solicita o token, exibe relatórios claros e orienta a escolha do modo de execução.
+- **⚙️ Camada Determinística (Scripts Auto-Contidos & Protocolo MCP):** Executa validações de token via JSON-RPC 2.0 no Edge (`https://mcp-server-enterprise.mardukasoft.online`), sonda o ambiente, configura túneis e escreve `mcp_config.json` sem alucinações.
 
 ```mermaid
 flowchart TD
-    A["Qualquer Projeto / Workspace"] --> B["Skill: control-server-entreprise"]
+    A["Agente de IA / Desenvolvedor"] --> B["Skill: control-server-entreprise"]
     
-    B -->|"discover"| C["Inspeção de Catálogo: Retorna tools, schemas e exemplos"]
-    B -->|"call / invoke"| D["Invocação Determinística: tools/call (hello / calc / etc)"]
-    B -->|"help"| E["Manual de Comandos: Sintaxe e exemplos prontos"]
-    B -->|"status"| F["Health Check: Consulta GET / no Edge"]
-    B -->|"test"| G["Smoke Test: Validação 100% remota do protocolo"]
-    B -->|"create_tool"| H["Scaffold: Criação instantânea de nova Tool modular"]
-    B -->|"deploy (no repo fonte)"| I["Publicação: wrangler deploy"]
+    B -->|"1. auth"| C["Validação de Token no Edge: https://mcp-server-enterprise.mardukasoft.online"]
+    B -->|"2. check_env"| D["Diagnóstico Silencioso: Python, venv, pacotes, wrangler, cloudflared"]
+    B -->|"3. install_deps"| E["Instalação Automática: .venv + requirements.txt"]
+    B -->|"4. setup_mode"| F["Configuração Determinística: Modo 1 (Serverless), Modo 2 (Túnel) ou Modo 3 (Stdio)"]
+    B -->|"5. discover / call"| G["Invocação de Tools: discover, hello, calc, sqlite, redis, etc."]
+    B -->|"6. test"| H["Smoke Test Protocolar: Validação ponta a ponta no Edge"]
     
-    C --> J["Cloudflare Workers Edge (https://mcp-server-enterprise.mardukasoft.online)"]
-    D --> J
-    E --> K["Console Local Formatado"]
-    F --> J
-    G --> J
-    H --> L["src/mcp_server/tools/<nova_tool>/"]
-    I --> J
+    C --> I["Cloudflare Workers Edge"]
+    D --> J["Relatório Estruturado em JSON"]
+    E --> K["Ambiente Virtual Pronto"]
+    F --> L["Arquivo mcp_config.json Configurado"]
+    G --> I
+    H --> I
 ```
 
 ---
 
-## 🏗️ Guia de Criação de Novas Ferramentas (Auto-Discovery & Template)
+## 🚀 Guia de Onboarding & Instalação para Agentes de IA
 
-Quando o usuário ou agente precisar **criar uma nova ferramenta** no servidor MCP Enterprise:
+Quando o usuário pedir para **instalar**, **configurar** ou **onboardar** o repositório clonado:
 
-### 1. O Contrato Estrito dos 4 Arquivos
-Toda ferramenta deve residir em sua própria subpasta em `src/mcp_server/tools/<nome_da_tool>/`:
+### Passo 1: Solicitação e Validação do Token de Acesso
+1. O Agente solicita o Token de Acesso / Licença ao usuário (ou orienta a abrir o portal no navegador: `https://mcp-server-enterprise.mardukasoft.online`).
+2. O Agente valida o token deterministicamente chamando:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action auth -Token "<TOKEN_DO_USUARIO>"
+   ```
+3. Se `valid` for `true`, o agente prossegue para o Passo 2.
 
-| Arquivo | Finalidade | Responsabilidade |
-| :--- | :--- | :--- |
-| **`schema.py`** | 🛡️ Contratos Pydantic | Classes `NomeInput` e `NomeOutput` com validações, `description` e `examples`. |
-| **`handler.py`** | ⚙️ Lógica Pura | Função determinística `execute(dados: NomeInput) -> NomeOutput`. |
-| **`meta.py`** | 🧠 Semântica LLM | Dicionário `METADATA` com `name`, `description`, `summary`, `usageGuidelines` e `examples`. |
-| **`__init__.py`** | 📦 Exportador | `__all__ = ["execute", "NomeInput", "NomeOutput", "METADATA"]`. |
+---
 
-### 2. Criação Instantânea via CLI
-Utilize o script de scaffold a partir da raiz do repositório:
+### Passo 2: Diagnóstico Silencioso de Gaps no Ambiente
+1. O Agente sonda o ambiente executando:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action check_env -JsonOutput
+   ```
+2. O Agente analisa o JSON retornado e apresenta um resumo limpo e amigável no chat (Python, `.venv`, dependências, Node.js, Wrangler, cloudflared).
+
+---
+
+### Passo 3: Resolução de Dependências
+1. Se houver dependências ausentes, o Agente pergunta: *"Deseja instalar as dependências agora?"*.
+2. Com a confirmação, executa:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action install_deps
+   ```
+
+---
+
+### Passo 4: Seleção do Modo de Execução
+O Agente apresenta os 3 modos de forma concisa e colorida:
+- **[1] ☁️ Serverless Edge:** 24/7 na Cloudflare (Deploy automático via Wrangler).
+- **[2] 🚇 Túnel Remoto:** Python Local + Túnel HTTPS automático (`cloudflared`).
+- **[3] ⚡ Local Stdio:** 100% no computador para IDEs locais (Padrão).
+
+Após a escolha do usuário, o Agente executa a configuração automática:
 ```powershell
-python scripts/create_tool.py <nome_da_tool> --desc "Descrição funcional da ferramenta"
-```
-*Exemplo:* `python scripts/create_tool.py cotacao_moeda --desc "Consulta cotações cambiais em tempo real"`
+# Exemplo para Modo 2 (Túnel)
+powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action setup_mode -Mode 2 -Token "<TOKEN>"
 
-### 3. Auto-Discovery (Zero-Configuração)
-- O servidor escaneia automaticamente todas as subpastas em `src/mcp_server/tools/`.
-- **NÃO é necessário** editar `registry.py`, `server.py` ou `entry.py` manualmente.
-- Pastas que começam com `_` (como `src/mcp_server/tools/_template/`) são modelos de referência e são ignoradas pelo carregador.
-
----
-
-## 📦 Como Usar Esta Skill em Outros Projetos
-
-Para disponibilizar o servidor MCP Enterprise e esta skill em qualquer outro repositório:
-
-### 1. Registrar no Cliente MCP do Projeto (`mcp_config.json` ou `.agents/mcp_config.json`)
-```json
-{
-  "mcpServers": {
-    "mcp-server-enterprise": {
-      "url": "https://mcp-server-enterprise.mardukasoft.online"
-    }
-  }
-}
-```
-
-### 2. Copiar a pasta da Skill
-Basta copiar a pasta `control-server-entreprise/` para a pasta de skills do seu projeto (`.agents/skills/control-server-entreprise/`) ou para as skills globais (`~/.gemini/config/skills/control-server-entreprise/`).
-
----
-
-## 🛠️ Catálogo de Funções de Controle
-
-### 1. `discover` (Descoberta Dinâmica de Ferramentas e Schemas)
-Consulta o catálogo de ferramentas ativas no Edge e exibe de forma legível seus schemas JSON, resumos, diretrizes e exemplos de uso:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action discover
+# Exemplo para Modo 3 (Local Stdio)
+powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action setup_mode -Mode 3
 ```
 
 ---
 
-### 2. `help` (Manual de Uso e Exemplos Rápidos)
-Exibe a lista de todos os comandos disponíveis com exemplos prontos para copiar e colar:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action help
-```
-
----
-
-### 3. `call` / `invoke` (Invocação Determinística de Ferramentas)
-Invoca diretamente as ferramentas do Cloudflare Workers sem intermediários:
-
-```powershell
-# 1. Ferramenta 'hello' (Saudação com Timestamp ISO 8601 UTC)
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action call -Tool hello -ArgsJson "{'name': 'Eduardo Rezende'}"
-
-# 2. Ferramenta 'calc' (Cálculo Determinístico Exato)
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action call -Tool calc -ArgsJson "{'valor1': 250, 'valor2': 5, 'operacao': '/'}"
-
-# 3. Ferramenta 'discover'
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action call -Tool discover
-```
-
----
-
-### 4. `status` (Health Check Remoto)
-Consulta o endpoint e exibe status, runtime, taxa de requisições e lista de tools ativas:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action status
-```
-
----
-
-### 5. `test` (Smoke Test Remoto Auto-Contido)
-Executa 4 testes protocolares completos (`GET /`, `initialize`, `tools/list`, `tools/call`) diretamente contra o Cloudflare Workers:
-
+### Passo 5: Smoke Test e Confirmação de Prontidão
+O Agente executa o teste protocolar para confirmar que o servidor responde perfeitamente:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action test
 ```
 
 ---
 
-### 6. `deploy` (Atualização no Cloudflare Workers)
-> **Nota:** Esta função requer os arquivos de código-fonte do servidor (`wrangler.toml`, `src/entry.py`) e é executada no repositório `mcp-server-enterprise-blueprint`.
+## 🛠️ Catálogo Completo de Ações da Skill
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action deploy
-```
-
----
-
-## 🌐 Endpoint de Produção
-
-- **URL Oficial:** `https://mcp-server-enterprise.mardukasoft.online`
-- **Ferramentas Nativas:** `discover`, `hello`, `calc`
-- **Autenticação:** Header `Authorization: Bearer rezende`
-- **Rate Limit:** Máximo de 60 requisições/hora por IP
+| Ação | Finalidade | Exemplo de Comando |
+| :--- | :--- | :--- |
+| **`auth`** | Valida remotamente o Bearer Token no Cloudflare Edge | `powershell -File control.ps1 -Action auth -Token "mcp_live_..."` |
+| **`check_env`** | Sonda gaps de ambiente (Python, venv, pacotes, wrangler, cloudflared) | `powershell -File control.ps1 -Action check_env -JsonOutput` |
+| **`install_deps`** | Cria `.venv` e instala dependências do `requirements.txt` | `powershell -File control.ps1 -Action install_deps` |
+| **`setup_mode`** | Configura automaticamente o `mcp_config.json` para Modo 1, 2 ou 3 | `powershell -File control.ps1 -Action setup_mode -Mode 2 -Token "..."` |
+| **`discover`** | Consulta o catálogo dinâmico de ferramentas e schemas no Edge | `powershell -File control.ps1 -Action discover` |
+| **`call`** | Invoca uma ferramenta determinística via JSON-RPC | `powershell -File control.ps1 -Action call -Tool hello -ArgsJson '{"name":"Eduardo"}'` |
+| **`status`** | Consulta a saúde e metadados da instância online | `powershell -File control.ps1 -Action status` |
+| **`test`** | Executa validação protocolar ponta a ponta | `powershell -File control.ps1 -Action test` |
+| **`deploy`** | Publica o Worker no Cloudflare Edge via Wrangler | `powershell -File control.ps1 -Action deploy` |
