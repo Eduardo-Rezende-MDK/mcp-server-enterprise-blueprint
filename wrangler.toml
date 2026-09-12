@@ -2,22 +2,22 @@ name = "mcp-server-enterprise"
 main = "src/entry.py"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["python_workers"]
-account_id = "<CLOUDFLARE_ACCOUNT_ID>"
 
-# 🌐 Domínio Customizado Enterprise
+# 🌐 Cloudflare Workers Dev (Habilita subdomínio padrão *.workers.dev)
 workers_dev = true
-routes = [
-  { pattern = "mcp-server-enterprise.mardukasoft.online", custom_domain = true }
-]
+
+# 🌐 Domínio Customizado (Opcional - descomente e preencha com seu próprio domínio)
+# routes = [
+#   { pattern = "mcp-server.seu-dominio.com", custom_domain = true }
+# ]
 
 [observability]
 enabled = true
 
+# 🔒 Variáveis de Ambiente & Secrets
+# NOTA DE SEGURANÇA: Nunca exponha tokens, IDs de conta ou senhas neste arquivo.
+# - Desenvolvimento local: utilize o arquivo '.dev.vars' (ignorado pelo git).
+# - Produção (Cloudflare): configure os segredos via 'npx wrangler secret put <NOME>'
+#   (ex: REDIS_URL, GMAIL_APP_PASSWORD, RESEND_API_KEY, GOOGLE_CLIENT_SECRET).
 [vars]
-GMAIL_USER = "dev@exemplo.com"
-GMAIL_APP_PASSWORD = "[REDACTED_GMAIL_APP_PASSWORD]"
-REDIS_URL = "redis://default:[REDACTED_REDIS_PASSWORD]@horses-set-meadow-16021.db.redis.io:11984"
-RESEND_API_KEY = "[REDACTED_RESEND_API_KEY]"
-RESEND_FROM = "MCP Server Enterprise <acesso@mardukasoft.online>"
-GOOGLE_CLIENT_ID = "<GOOGLE_CLIENT_ID>.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET = "[REDACTED_GOOGLE_CLIENT_SECRET]"
+RESEND_FROM = "MCP Server Enterprise <acesso@seu-dominio.com>"

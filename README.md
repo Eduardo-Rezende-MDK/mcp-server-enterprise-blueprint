@@ -194,12 +194,15 @@ pip install -r requirements.txt
 # 2. Executar testes de validação
 pytest -v
 
-# 3. Deploy no Cloudflare Workers
+# 3. Sincronizar segredos com a Cloudflare (executar uma única vez ou quando mudar chaves)
+python scripts/sync_secrets.py
+
+# 4. Deploy no Cloudflare Workers
 npx wrangler deploy
 ```
 
-- **Endpoint de Produção:** `https://mcp-server-enterprise.danicardoso-3011.workers.dev`
-- **Domínio Personalizado:** `https://mcp-server-enterprise.mardukasoft.online`
+- **Endpoint de Produção:** `https://<seu-worker>.<seu-subdominio>.workers.dev`
+- **Domínio Personalizado (Opcional):** Configurado na seção `routes` do `wrangler.toml`
 
 ---
 

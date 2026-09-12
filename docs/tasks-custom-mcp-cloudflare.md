@@ -67,7 +67,6 @@ flowchart LR
     main = "src/entry.py"
     compatibility_date = "2024-09-23"
     compatibility_flags = ["python_workers"]
-    account_id = "<CLOUDFLARE_ACCOUNT_ID>"
     ```
 - [x] **3.2. Entrypoint Serverless em Python (`src/entry.py`)**
   - [x] Implementar o handler `on_fetch(request, env)` conectando as ferramentas determinísticas de `src/mcp_server/tools/`

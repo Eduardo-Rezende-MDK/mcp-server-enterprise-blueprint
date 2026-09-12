@@ -1,0 +1,19 @@
+# ==============================================================================
+# .dev.vars.example - Cloudflare Workers Local Development Environment Variables
+# Copy this file to .dev.vars and replace with your actual development credentials
+# ==============================================================================
+
+# Redis / Upstash Connection URL
+REDIS_URL="redis://default:<REDIS_PASSWORD>@<REDIS_HOST>:<REDIS_PORT>"
+
+# Gmail / SMTP Credentials (Fallback email delivery)
+GMAIL_USER="seu-email@gmail.com"
+GMAIL_APP_PASSWORD="sua-senha-de-app-gmail"
+
+# Resend API Key (Primary Edge email delivery)
+RESEND_API_KEY="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+RESEND_FROM="MCP Server Enterprise <acesso@seudominio.com>"
+
+# Google OAuth 2.0 (Google Identity Services)
+GOOGLE_CLIENT_ID="seu-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="seu-google-client-secret"
