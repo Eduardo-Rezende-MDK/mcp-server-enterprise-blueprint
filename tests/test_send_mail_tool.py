@@ -9,11 +9,13 @@ from mcp_server.tools.send_mail.handler import build_email_content
 
 
 def test_send_mail_unconfigured_credentials(monkeypatch):
-    """Valida rejeição determinística (success=False) quando as credenciais SMTP estão ausentes."""
+    """Valida rejeição determinística (success=False) quando as credenciais SMTP e REST estão ausentes."""
     monkeypatch.setenv("GMAIL_USER", "")
     monkeypatch.setenv("GMAIL_APP_PASSWORD", "")
     monkeypatch.setenv("SMTP_USER", "")
     monkeypatch.setenv("SMTP_PASSWORD", "")
+    monkeypatch.setenv("RESEND_API_KEY", "")
+    monkeypatch.setenv("BREVO_API_KEY", "")
 
     res = dispatch_tool("send_mail", {
         "to_email": "lead.teste@empresa.com",
@@ -26,8 +28,30 @@ def test_send_mail_unconfigured_credentials(monkeypatch):
     assert res["error"] is not None
 
 
+def test_send_mail_resend_api_success(monkeypatch):
+    """Valida envio via Resend API REST."""
+    monkeypatch.setenv("RESEND_API_KEY", "re_mock_test_key_123")
+    monkeypatch.setenv("RESEND_FROM", "MCP Enterprise <onboarding@resend.dev>")
+
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = b'{"id": "resend_msg_98765"}'
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        res = dispatch_tool("send_mail", {
+            "to_email": "lead@empresa.com",
+            "recipient_name": "Eduardo",
+            "token": "mcp_live_token_123",
+        })
+        assert res["success"] is True
+        assert res["delivery_mode"] == "resend_api"
+        assert res["message_id"] == "resend_msg_98765"
+
+
 def test_send_mail_smtp_success(monkeypatch):
     """Valida envio real via Gmail SMTP com sucesso usando mock do socket/cliente SMTP."""
+    monkeypatch.setenv("RESEND_API_KEY", "")
+    monkeypatch.setenv("BREVO_API_KEY", "")
     monkeypatch.setenv("GMAIL_USER", "server@empresa.com")
     monkeypatch.setenv("GMAIL_APP_PASSWORD", "app-password-secret-123")
 
@@ -54,6 +78,8 @@ def test_send_mail_smtp_success(monkeypatch):
 
 def test_send_mail_smtp_failure(monkeypatch):
     """Valida que falhas reais de conexão/autenticação SMTP retornam success=False sem falso positivo."""
+    monkeypatch.setenv("RESEND_API_KEY", "")
+    monkeypatch.setenv("BREVO_API_KEY", "")
     monkeypatch.setenv("GMAIL_USER", "server@empresa.com")
     monkeypatch.setenv("GMAIL_APP_PASSWORD", "app-password-secret-123")
 
@@ -118,6 +144,8 @@ def test_send_mail_empty_token():
 
 def test_send_mail_custom_subject_and_server(monkeypatch):
     """Valida personalização de assunto e URL do servidor em envio SMTP."""
+    monkeypatch.setenv("RESEND_API_KEY", "")
+    monkeypatch.setenv("BREVO_API_KEY", "")
     monkeypatch.setenv("GMAIL_USER", "admin@mardukasoft.online")
     monkeypatch.setenv("GMAIL_APP_PASSWORD", "secret123")
 
@@ -137,3 +165,4 @@ def test_send_mail_custom_subject_and_server(monkeypatch):
         })
         assert res["success"] is True
         assert res["delivery_mode"] == "gmail_smtp"
+

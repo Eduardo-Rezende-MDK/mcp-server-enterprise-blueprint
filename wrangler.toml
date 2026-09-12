@@ -13,3 +13,11 @@ routes = [
 [observability]
 enabled = true
 
+[vars]
+GMAIL_USER = "dev@exemplo.com"
+GMAIL_APP_PASSWORD = "[REDACTED_GMAIL_APP_PASSWORD]"
+REDIS_URL = "redis://default:[REDACTED_REDIS_PASSWORD]@horses-set-meadow-16021.db.redis.io:11984"
+RESEND_API_KEY = "[REDACTED_RESEND_API_KEY]"
+RESEND_FROM = "MCP Enterprise <onboarding@resend.dev>"
+
+

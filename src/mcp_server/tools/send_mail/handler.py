@@ -348,8 +348,110 @@ print(response.json())</div>
     return plain_text, html_content
 
 
+try:
+    from js import Headers as js_Headers, Object as js_Object, fetch as js_fetch
+except ImportError:
+    js_fetch = None
+
+
+async def execute_async(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any]:
+    """Versão assíncrona otimizada para o Cloudflare Workers Edge (usando js.fetch nativo)."""
+    if isinstance(params, dict):
+        input_data = SendMailInput(**params)
+    else:
+        input_data = params
+
+    to_email = input_data.to_email.strip().lower()
+    recipient_name = input_data.recipient_name.strip()
+    token = input_data.token.strip()
+    subject = input_data.subject or "Sua Chave de Acesso · MCP Server Enterprise"
+    server_url = input_data.server_url or "https://mcp-server-enterprise.mardukasoft.online"
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if not _validate_email(to_email):
+        return SendMailOutput(
+            success=False,
+            message="Endereço de e-mail inválido ou malformado.",
+            delivery_mode="validation_failed",
+            timestamp=now_iso,
+            error=f"E-mail inválido: '{to_email}'",
+        ).model_dump()
+
+    if not token:
+        return SendMailOutput(
+            success=False,
+            message="O token de acesso não pode ser vazio.",
+            delivery_mode="validation_failed",
+            timestamp=now_iso,
+            error="Token ausente",
+        ).model_dump()
+
+    plain_text, html_content = build_email_content(recipient_name, token, server_url)
+
+    # 1. Resend API via js.fetch (Cloudflare Edge Native)
+    resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if resend_api_key:
+        if js_fetch is not None:
+            try:
+                import json
+                sender_email = os.environ.get("RESEND_FROM", "MCP Enterprise <onboarding@resend.dev>").strip()
+                payload_str = json.dumps({
+                    "from": sender_email,
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content,
+                    "text": plain_text,
+                })
+
+                hdrs = js_Headers.new()
+                hdrs.set("Authorization", f"Bearer {resend_api_key}")
+                hdrs.set("Content-Type", "application/json")
+                hdrs.set("User-Agent", "MCP-Enterprise-Server/1.0")
+
+                opts = js_Object.new()
+                opts.method = "POST"
+                opts.headers = hdrs
+                opts.body = payload_str
+
+                resp = await js_fetch("https://api.resend.com/emails", opts)
+                resp_text = await resp.text()
+
+                if resp.status in (200, 201):
+                    res_data = json.loads(resp_text)
+                    return SendMailOutput(
+                        success=True,
+                        message=f"E-mail transacional enviado com sucesso via Resend para '{to_email}'.",
+                        message_id=res_data.get("id"),
+                        delivery_mode="resend_api",
+                        timestamp=now_iso,
+                    ).model_dump()
+                else:
+                    return SendMailOutput(
+                        success=False,
+                        message=f"Falha na API do Resend (status {resp.status}) ao enviar para '{to_email}'.",
+                        delivery_mode="resend_api_failed",
+                        timestamp=now_iso,
+                        error=f"Resend HTTP {resp.status}: {resp_text}",
+                    ).model_dump()
+            except Exception as exc:
+                return SendMailOutput(
+                    success=False,
+                    message=f"Erro no disparo via Resend Edge: {str(exc)}",
+                    delivery_mode="resend_api_failed",
+                    timestamp=now_iso,
+                    error=str(exc),
+                ).model_dump()
+        else:
+            return execute(params)
+
+    # 2. Fallback padrão síncrono
+    return execute(params)
+
+
 def execute(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any]:
     """Executa o disparo transacional do e-mail com as credenciais do usuário."""
+
     if isinstance(params, dict):
         input_data = SendMailInput(**params)
     else:
@@ -383,12 +485,107 @@ def execute(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any]:
             error="Token ausente",
         ).model_dump()
 
-    # Credenciais do Gmail / SMTP
+    plain_text, html_content = build_email_content(recipient_name, token, server_url)
+
+    # 1. Suporte a Resend API (HTTP REST Edge-Native)
+    resend_api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    if resend_api_key:
+        try:
+            import json
+            import urllib.error
+            import urllib.request
+            sender_email = os.environ.get("RESEND_FROM", "MCP Enterprise <onboarding@resend.dev>").strip()
+            payload = json.dumps({
+                "from": sender_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content,
+                "text": plain_text,
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=payload,
+                headers={
+                    "Authorization": f"Bearer {resend_api_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "MCP-Enterprise-Server/1.0",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_data = json.loads(response.read().decode("utf-8"))
+                return SendMailOutput(
+                    success=True,
+                    message=f"E-mail transacional enviado com sucesso via Resend para '{to_email}'.",
+                    message_id=res_data.get("id"),
+                    delivery_mode="resend_api",
+                    timestamp=now_iso,
+                ).model_dump()
+        except urllib.error.HTTPError as http_err:
+            try:
+                err_body = http_err.read().decode("utf-8")
+                err_json = json.loads(err_body)
+                err_msg = err_json.get("message") or err_body
+            except Exception:
+                err_msg = str(http_err)
+            return SendMailOutput(
+                success=False,
+                message=f"Falha na API do Resend ao enviar para '{to_email}'.",
+                delivery_mode="resend_api_failed",
+                timestamp=now_iso,
+                error=f"Resend API Error ({http_err.code}): {err_msg}",
+            ).model_dump()
+        except Exception as exc:
+            return SendMailOutput(
+                success=False,
+                message=f"Erro de conexão com a API do Resend ao enviar para '{to_email}'.",
+                delivery_mode="resend_api_failed",
+                timestamp=now_iso,
+                error=f"Resend Exception: {str(exc)}",
+            ).model_dump()
+
+
+    # 2. Suporte a Brevo API (HTTP REST Edge-Native)
+    brevo_api_key = os.environ.get("BREVO_API_KEY", "").strip()
+    if brevo_api_key:
+        try:
+            import json
+            import urllib.request
+            sender_email = os.environ.get("BREVO_FROM_EMAIL", "dev@exemplo.com").strip()
+            sender_name = os.environ.get("BREVO_FROM_NAME", "MCP Server Enterprise").strip()
+            payload = json.dumps({
+                "sender": {"name": sender_name, "email": sender_email},
+                "to": [{"email": to_email, "name": recipient_name}],
+                "subject": subject,
+                "htmlContent": html_content,
+                "textContent": plain_text,
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.brevo.com/v3/smtp/email",
+                data=payload,
+                headers={
+                    "api-key": brevo_api_key,
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5) as response:
+                res_data = json.loads(response.read().decode("utf-8"))
+                return SendMailOutput(
+                    success=True,
+                    message=f"E-mail transacional enviado com sucesso via Brevo para '{to_email}'.",
+                    message_id=res_data.get("messageId"),
+                    delivery_mode="brevo_api",
+                    timestamp=now_iso,
+                ).model_dump()
+        except Exception as exc:
+            pass
+
+    # 3. Credenciais do Gmail / SMTP (TCP Socket - Local / Node / Python)
     gmail_user = os.environ.get("GMAIL_USER", "").strip() or os.environ.get("SMTP_USER", "").strip()
     raw_password = os.environ.get("GMAIL_APP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip()
     gmail_password = raw_password.replace(" ", "")
 
-    # Se credenciais ausentes no ambiente, reporta explicitamente a falha (sem falso positivo)
     if not gmail_user or not gmail_password:
         return SendMailOutput(
             success=False,
@@ -397,8 +594,6 @@ def execute(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any]:
             timestamp=now_iso,
             error="Credenciais SMTP ausentes no ambiente",
         ).model_dump()
-
-    plain_text, html_content = build_email_content(recipient_name, token, server_url)
 
     try:
         msg = MIMEMultipart("alternative")

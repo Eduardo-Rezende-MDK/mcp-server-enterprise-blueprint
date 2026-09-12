@@ -4,13 +4,21 @@ Exposes the MCP Enterprise Server deterministically over HTTP, JSON-RPC 2.0 and 
 """
 
 import json
+import os
 from datetime import datetime, timezone
 from js import Headers, Response
 from urllib.parse import urlparse
 
 from mcp_server.registry import TOOL_DEFINITIONS, dispatch_tool
 from mcp_server.security import extract_client_ip, rate_limiter, validate_bearer_token
-from mcp_server.ui.portal import get_portal_html, handle_google_login, handle_lead_login
+from mcp_server.ui.portal import (
+    get_portal_html,
+    handle_google_login,
+    handle_google_login_async,
+    handle_lead_login,
+    handle_lead_login_async,
+)
+
 
 
 def create_cors_headers(content_type: str = "application/json; charset=utf-8") -> Headers:
@@ -40,6 +48,22 @@ def format_mcp_tools_list():
 
 async def on_fetch(request, env):
     """Handler principal de requisições HTTP do Cloudflare Worker."""
+    # Sincroniza variáveis de ambiente e secrets do Cloudflare Worker para os.environ
+    if env is not None:
+        try:
+            if hasattr(env, "items"):
+                for k, v in env.items():
+                    if isinstance(v, str):
+                        os.environ[k] = v
+            else:
+                for k in dir(env):
+                    if not k.startswith("_"):
+                        val = getattr(env, k, None)
+                        if isinstance(val, (str, int, float, bool)):
+                            os.environ[k] = str(val)
+        except Exception:
+            pass
+
     method = request.method
     raw_url = str(request.url)
     parsed_url = urlparse(raw_url)
@@ -112,6 +136,30 @@ async def on_fetch(request, env):
 
     # 4. Rota POST: Auth REST Endpoints ou JSON-RPC 2.0
     if method == "POST":
+        # Endpoints REST de Autenticação (não usam JSON-RPC)
+        if pathname == "/api/auth/login":
+            try:
+                body_text = await request.text()
+                body_json = json.loads(body_text) if body_text else {}
+                login_res = await handle_lead_login_async(body_json)
+                status_code = 200 if login_res.get("success") else 400
+                return Response.new(json.dumps(login_res, ensure_ascii=False), status=status_code, headers=headers)
+            except Exception as exc:
+                err_payload = {"success": False, "error": f"Falha ao processar cadastro: {str(exc)}"}
+                return Response.new(json.dumps(err_payload, ensure_ascii=False), status=400, headers=headers)
+
+        if pathname == "/api/auth/google":
+            try:
+                body_text = await request.text()
+                body_json = json.loads(body_text) if body_text else {}
+                google_res = await handle_google_login_async(body_json)
+                status_code = 200 if google_res.get("success") else 400
+                return Response.new(json.dumps(google_res, ensure_ascii=False), status=status_code, headers=headers)
+            except Exception as exc:
+                err_payload = {"success": False, "error": f"Falha ao autenticar Google: {str(exc)}"}
+                return Response.new(json.dumps(err_payload, ensure_ascii=False), status=400, headers=headers)
+
+
         try:
             body_text = await request.text()
             if not body_text:
@@ -122,18 +170,6 @@ async def on_fetch(request, env):
                 )
 
             body_json = json.loads(body_text)
-
-            # 4.1. Endpoint REST: POST /api/auth/login
-            if pathname == "/api/auth/login":
-                login_res = handle_lead_login(body_json)
-                status_code = 200 if login_res.get("success") else 400
-                return Response.new(json.dumps(login_res, ensure_ascii=False), status=status_code, headers=headers)
-
-            # 4.2. Endpoint REST: POST /api/auth/google
-            if pathname == "/api/auth/google":
-                google_res = handle_google_login(body_json)
-                status_code = 200 if google_res.get("success") else 400
-                return Response.new(json.dumps(google_res, ensure_ascii=False), status=status_code, headers=headers)
 
             # 4.3. Processamento JSON-RPC 2.0 (MCP Protocol)
             rpc_request = body_json
