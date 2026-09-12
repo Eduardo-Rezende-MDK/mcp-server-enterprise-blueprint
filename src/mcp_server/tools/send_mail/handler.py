@@ -14,7 +14,7 @@ from .schema import SendMailInput, SendMailOutput
 
 
 def _load_env_file() -> None:
-    """Carrega variáveis do arquivo .env se ainda não presentes no ambiente."""
+    """Carrega variáveis do arquivo .env se ainda não presentes ou atualizadas."""
     candidate_paths = [
         Path.cwd() / ".env",
         Path(__file__).resolve().parent.parent.parent.parent.parent / ".env",
@@ -36,6 +36,8 @@ def _load_env_file() -> None:
                 break
             except Exception:
                 pass
+
+_load_env_file()
 
 
 def _validate_email(email: str) -> bool:
@@ -234,8 +236,6 @@ Equipe MCP Server Enterprise
 
 def execute(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any]:
     """Executa o disparo transacional do e-mail com as credenciais do usuário."""
-    _load_env_file()
-
     if isinstance(params, dict):
         input_data = SendMailInput(**params)
     else:
@@ -271,7 +271,8 @@ def execute(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any]:
 
     # Credenciais do Gmail / SMTP
     gmail_user = os.environ.get("GMAIL_USER", "").strip() or os.environ.get("SMTP_USER", "").strip()
-    gmail_password = os.environ.get("GMAIL_APP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip()
+    raw_password = os.environ.get("GMAIL_APP_PASSWORD", "").strip() or os.environ.get("SMTP_PASSWORD", "").strip()
+    gmail_password = raw_password.replace(" ", "")
 
     # Se credenciais ausentes no ambiente, reporta explicitamente a falha (sem falso positivo)
     if not gmail_user or not gmail_password:

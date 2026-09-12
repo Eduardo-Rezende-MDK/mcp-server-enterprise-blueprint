@@ -10,10 +10,10 @@ from mcp_server.tools.send_mail.handler import build_email_content
 
 def test_send_mail_unconfigured_credentials(monkeypatch):
     """Valida rejeição determinística (success=False) quando as credenciais SMTP estão ausentes."""
-    monkeypatch.delenv("GMAIL_USER", raising=False)
-    monkeypatch.delenv("GMAIL_APP_PASSWORD", raising=False)
-    monkeypatch.delenv("SMTP_USER", raising=False)
-    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+    monkeypatch.setenv("GMAIL_USER", "")
+    monkeypatch.setenv("GMAIL_APP_PASSWORD", "")
+    monkeypatch.setenv("SMTP_USER", "")
+    monkeypatch.setenv("SMTP_PASSWORD", "")
 
     res = dispatch_tool("send_mail", {
         "to_email": "lead.teste@empresa.com",
