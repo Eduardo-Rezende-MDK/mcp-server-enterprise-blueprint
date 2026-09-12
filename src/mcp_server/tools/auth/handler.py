@@ -23,7 +23,7 @@ def _validate_email(email: str) -> bool:
 
 ADMIN_NAME = "Eduardo Rezende"
 ADMIN_EMAIL = "du.rezende@gmail.com"
-ADMIN_TOKEN = "mcp_live_3333755c29cca946c481079b3cd60625"
+ADMIN_TOKEN = "MARDUKA"
 
 
 def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
@@ -81,10 +81,15 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             "fields": admin_data,
         })
 
-        # 2. Salva o índice de busca rápida O(1) por Token
+        # 2. Salva o índice de busca rápida O(1) por Token (MARDUKA e chave legado)
         execute_redis({
             "action": "set",
             "key": f"auth:token:{ADMIN_TOKEN}",
+            "value": admin_data,
+        })
+        execute_redis({
+            "action": "set",
+            "key": "auth:token:mcp_live_3333755c29cca946c481079b3cd60625",
             "value": admin_data,
         })
 

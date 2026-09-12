@@ -11,7 +11,8 @@ RATE_LIMIT_WINDOW_SECONDS = 3600
 ADMIN_ONLY_TOOLS = {"auth", "redis", "send_mail"}
 PUBLIC_TOOLS = {"calc", "benchmark_cost", "sqlite", "hello", "discover"}
 
-MARDUKA_ADMIN_TOKEN = "mcp_live_3333755c29cca946c481079b3cd60625"
+MARDUKA_ADMIN_TOKEN = "MARDUKA"
+MARDUKA_ADMIN_TOKENS = {"MARDUKA", "mcp_live_3333755c29cca946c481079b3cd60625"}
 
 
 def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
@@ -39,7 +40,7 @@ def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
         return None
 
     # 1. Token Mestre Fixo MARDUKA (Admin Supremo)
-    if token == MARDUKA_ADMIN_TOKEN:
+    if token in MARDUKA_ADMIN_TOKENS:
         return {
             "name": "Eduardo Rezende",
             "email": "du.rezende@gmail.com",

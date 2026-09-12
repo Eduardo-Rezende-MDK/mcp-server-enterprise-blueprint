@@ -9,7 +9,26 @@ import urllib.error
 import urllib.request
 
 WORKER_URL = os.environ.get("MCP_WORKER_URL", "https://mcp-server-enterprise.mardukasoft.online")
-DEFAULT_TOKEN = os.environ.get("MCP_BEARER_TOKEN", "rezende")
+
+
+def _get_default_token() -> str:
+    token = os.environ.get("MCP_BEARER_TOKEN") or os.environ.get("AUTH_TOKEN")
+    if token:
+        return token
+    # Tenta ler do .env
+    env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("AUTH_TOKEN="):
+                        return line.split("=", 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+    return "MARDUKA"
+
+
+DEFAULT_TOKEN = _get_default_token()
 
 
 def parse_args_string(raw: str) -> dict:
