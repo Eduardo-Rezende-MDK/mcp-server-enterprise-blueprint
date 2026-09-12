@@ -316,14 +316,11 @@ switch ($Action.ToLower()) {
             $removedItems += "mcp_config.json"
         }
 
-        # 4. Remover .env se existir e Force/interativo
+        # 4. Backup e Preservação de .env
         $envFile = "$ProjectRoot\.env"
         if (Test-Path $envFile) {
-            if ($Force -or -not $JsonOutput) {
-                Write-Host "[INFO] Removendo .env..." -ForegroundColor Yellow
-                Remove-Item -Path $envFile -Force -ErrorAction SilentlyContinue
-                $removedItems += ".env"
-            }
+            Copy-Item -Path $envFile -Destination "$ProjectRoot\.env.bak" -Force -ErrorAction SilentlyContinue
+            Write-Host "[INFO] Backup de seguranca criado: .env.bak" -ForegroundColor Cyan
         }
 
         # 5. Limpar caches Python
