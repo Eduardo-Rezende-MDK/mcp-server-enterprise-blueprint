@@ -34,3 +34,15 @@ Sempre que o usuário enviar o comando ou alias **"tarefa concluida"** (ou varia
 2. **Validação de Qualidade:** Executar a suíte de testes (`pytest`) para garantir integridade e 100% de aprovação.
 3. **Commit Semântico:** Realizar `git add .` e `git commit` com uma mensagem descritiva e padronizada em português.
 4. **Encerramento da Sessão:** Apresentar um resumo executivo claro do que foi entregue e finalizar a interação.
+
+---
+
+## 6. Protocolo de Comparativo de Tokens (Alias: "comparativo_token_cost")
+Sempre que o usuário enviar o comando ou alias **"comparativo_token_cost"** (ou variações como *"comparativo token cost"*, *"benchmark token cost"*, *"testar custo de tokens"*):
+1. **Passo 1 — Execução Real no Servidor MCP (`benchmark_cost`):** O agente deve obrigatoriamente chamar a tool `benchmark_cost` no servidor MCP real hospedado na Cloudflare (sem passar parâmetros fixos, permitindo que a tool gere os parâmetros aleatórios realistas).
+2. **Passo 2 — Extração dos Parâmetros e Resultado Determinístico:** Receber a resposta do MCP contendo os parâmetros gerados (`principal`, `taxa_anual`, `meses`, `sistema`) e os valores calculados (parcelas, amortização, juros totais).
+3. **Passo 3 — Execução Cognitiva Direta (LLM puro sem Tool):** Utilizar os exatos mesmos parâmetros retornados pelo MCP no Passo 2 e resolver a simulação financeira diretamente na camada cognitiva do LLM (demonstrando o raciocínio e cálculo textual).
+4. **Passo 4 — Apresentação do Relatório Comparativo no Chat:** Exibir um relatório visual contendo:
+   - **Tabela Comparativa de Tokens:** Tokens de Prompt (Entrada), Tokens de Raciocínio (Thinking/CoT), Tokens de Saída (Output), Total de Tokens, Risco de Alucinação e Latência.
+   - **Cálculo da Economia Real:** Demonstrar a redução percentual de tokens obtida pela abordagem FastMCP (~80% a 95%).
+   - **Diagrama Mermaid:** Fluxo comparativo com rótulos de nós entre aspas duplas.

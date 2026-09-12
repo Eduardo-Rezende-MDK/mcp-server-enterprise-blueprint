@@ -238,6 +238,12 @@ O arquivo [`.agents/skills/control-server-entreprise/SKILL.md`](file:///c:/Users
 - **Input:** `action: SqliteAction`, `query: Optional[str]`, `table: Optional[str]`, `data: Optional[dict]`, `where: Optional[dict | str]`, `params: Optional[list | dict]`, `limit: int`, `db_name: str`
 - **Output:** `success: bool`, `message: str`, `rows: list[dict]`, `rows_affected: int`, `last_row_id: Optional[int]`, `columns: list[str]`
 
+### 5. `benchmark_cost`
+- **Módulo:** `src/mcp_server/tools/benchmark_cost/`
+- **Objetivo:** Executa simulação financeira determinística de financiamento/amortização (SAC ou PRICE) e gera métricas comparativas de consumo de tokens (LLM Cognitivo vs. FastMCP Determinístico). Quando invocada sem parâmetros (`{}`), gera valores aleatórios realistas automaticamente.
+- **Input:** `principal: Optional[float]`, `taxa_anual: Optional[float]`, `meses: Optional[int]`, `sistema: Optional[SistemaAmortizacao]`
+- **Output:** `params_usados: dict`, `resumo_financeiro: dict`, `cronograma_amostra: list[dict]`, `benchmark_metricas: dict` (incluindo estimativa de tokens, economia percentual e garantia de zero alucinação).
+
 ---
 
 ## 🔐 8. Arquitetura de Autenticação, Rate Limiting & Segurança
@@ -331,3 +337,14 @@ flowchart TD
   - [x] Segurança perimetral com zero-leak de tokens na interface pública e no payload REST.
 - [x] **Task 5.6 — Suíte de Testes Integrada (`pytest`) (Concluído ✅):**
   - [x] 74 testes automatizados cobrindo todas as tools, autenticação, redis, envio de e-mails e portal UI com 100% de aprovação.
+
+### 📊 Fase 6: Benchmark de Custo de Tokens & Tool `benchmark_cost` (Concluída ✅)
+- [x] **Task 6.1 — Criação Modular da Tool `benchmark_cost`:**
+  - [x] Criar `src/mcp_server/tools/benchmark_cost/` contendo `schema.py`, `handler.py`, `meta.py` e `__init__.py`.
+  - [x] Implementar simulação determinística de financiamento (SAC e PRICE) com suporte a auto-geração de parâmetros aleatórios quando os campos forem omitidos (`{}`).
+  - [x] Estruturar retorno com dados de parcelas, juros, amortização e telemetria de economia de tokens.
+- [x] **Task 6.2 — Protocolo de Comparativo de Tokens no `AGENTS.md`:**
+  - [x] Registrar o alias `comparativo_token_cost` no `AGENTS.md` estabelecendo o fluxo de 4 passos (MCP Real -> Extração de Dados -> Simulação Cognitiva LLM -> Quadro Comparativo no Chat).
+- [x] **Task 6.3 — Suíte de Testes Automatizados (`pytest`):**
+  - [x] Criar `tests/test_benchmark_cost.py` validando execução determinística com parâmetros manuais e aleatórios, schemas Pydantic e compatibilidade com o auto-discovery (78/78 testes aprovados).
+
