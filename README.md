@@ -68,7 +68,7 @@ O projeto já vem pronto para rodar em 3 modos de execução flexíveis (utiliza
 2. **Modo 2 — Local Remoto com Túnel Cloudflare:** Execução local exposta via `cloudflared` com suporte a SSE para LLMs baseados na nuvem.
 3. **Modo 3 — Local Puro (FastMCP Stdio):** Execução nativa via stdio direta na máquina do desenvolvedor (ideal para Antigravity, Cursor e Claude Desktop).
 
-> **Pós-Deploy:** O arquivo [mcp_config.json](file:///c:/Users/rezen/Desktop/hh/mcp-server-enterprise-blueprint/mcp_config.json) gerado automaticamente permite plugar seu servidor em qualquer cliente LLM em segundos.
+> **Pós-Deploy:** O arquivo [mcp_config.json](./mcp_config.json) gerado automaticamente permite plugar seu servidor em qualquer cliente LLM em segundos.
 
 ---
 
