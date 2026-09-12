@@ -1,9 +1,9 @@
-﻿{
+{
   "mcpServers": {
     "mcp-server-enterprise": {
       "url": "https://mcp-server-enterprise.mardukasoft.online",
       "headers": {
-        "Authorization": "Bearer mcp_live_3333755c29cca946c481079b3cd60625"
+        "Authorization": "Bearer MARDUKA"
       },
       "type": "http"
     }

@@ -17,7 +17,7 @@ def test_auth_setup():
     res = dispatch_tool("auth", {"action": "setup"})
     assert res["success"] is True
     assert res["role"] == "admin"
-    assert res["token"] == "mcp_live_3333755c29cca946c481079b3cd60625"
+    assert res["token"] == "MARDUKA"
     assert res["user"]["email"] == "du.rezende@gmail.com"
     assert res["user"]["role"] == "admin"
 

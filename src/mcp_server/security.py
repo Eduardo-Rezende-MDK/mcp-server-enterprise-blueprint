@@ -11,7 +11,7 @@ RATE_LIMIT_WINDOW_SECONDS = 3600
 ADMIN_ONLY_TOOLS = {"auth", "redis", "send_mail"}
 PUBLIC_TOOLS = {"calc", "benchmark_cost", "sqlite", "hello", "discover"}
 
-MARDUKA_ADMIN_TOKEN = "mcp_live_3333755c29cca946c481079b3cd60625"
+MARDUKA_ADMIN_TOKEN = "MARDUKA"
 
 
 def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
@@ -38,12 +38,12 @@ def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
     if not token:
         return None
 
-    # 1. Token Mestre Fixo MARDUKA (Admin Supremo)
-    if token == MARDUKA_ADMIN_TOKEN:
+    # 1. Token Mestre Fixo MARDUKA (Admin Supremo Único)
+    if token.upper() == MARDUKA_ADMIN_TOKEN:
         return {
             "name": "Eduardo Rezende",
             "email": "du.rezende@gmail.com",
-            "token": token,
+            "token": "MARDUKA",
             "role": "admin",
             "status": "active",
         }
@@ -59,16 +59,6 @@ def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
             return user_data
     except Exception:
         pass
-
-    # 3. Fallback perimetral para tokens mcp_live_ válidos no Edge
-    if token.startswith("mcp_live_") and len(token) >= 20:
-        return {
-            "name": "Lead User",
-            "email": "lead@mcp.io",
-            "token": token,
-            "role": "lead",
-            "status": "active",
-        }
 
     return None
 

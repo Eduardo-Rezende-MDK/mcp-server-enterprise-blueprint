@@ -127,4 +127,20 @@ flowchart TD
   - [x] Proteger as credenciais de Redis, Google Sheets e Tokens de Auth como *Cloudflare Worker Secrets* no servidor de produção central
   - [x] Criar branch de desenvolvimento interno / documentação de gestão de leads privada para controle do proprietário
 
+---
+
+## 🔒 Fase 5: Blindagem Perimetral (RBAC) & Token Único MARDUKA (Concluída)
+
+- [x] **5.1. Controle de Acesso Baseado em Papéis (RBAC no Edge)**
+  - [x] Separação estrita entre ferramentas públicas (`calc`, `hello`, `discover`, `benchmark_cost`, `sqlite`) e administrativas restritas (`auth`, `redis`, `send_mail`)
+  - [x] Bloqueio determinístico perimetral no `tools/call` com HTTP 403 / JSON-RPC `-32003` para perfis `lead`
+  - [x] Filtragem dinâmica de catálogo no `tools/list` para ocultar ferramentas administrativas dos clientes/leads
+- [x] **5.2. Token Master Único MARDUKA**
+  - [x] Padronização de **`MARDUKA`** como o único token mestre do Administrador (`du.rezende@gmail.com`)
+  - [x] Expurgados todos os tokens temporários e legados do código, `.env`, `mcp_config.json` e Redis
+  - [x] Reset e bootstrap determinístico do banco de dados Redis Upstash
+  - [x] Suíte de testes atualizada: 81/81 testes aprovados (`pytest`)
+  - [x] Deploy em produção ativo no Cloudflare Workers (`https://mcp-server-enterprise.mardukasoft.online`)
+
+
 

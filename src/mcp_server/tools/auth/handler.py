@@ -23,7 +23,7 @@ def _validate_email(email: str) -> bool:
 
 ADMIN_NAME = "Eduardo Rezende"
 ADMIN_EMAIL = "du.rezende@gmail.com"
-ADMIN_TOKEN = "mcp_live_3333755c29cca946c481079b3cd60625"
+ADMIN_TOKEN = "MARDUKA"
 
 
 def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
@@ -81,7 +81,7 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             "fields": admin_data,
         })
 
-        # 2. Salva o índice de busca rápida O(1) por Token
+        # 2. Salva o índice de busca rápida O(1) por Token MARDUKA
         execute_redis({
             "action": "set",
             "key": f"auth:token:{ADMIN_TOKEN}",
@@ -194,7 +194,30 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
         token = (input_data.token or "").strip()
         email = (input_data.email or "").strip().lower()
 
-        # A) Consulta por Token
+        # A) Token Mestre MARDUKA
+        if token and token.upper() == ADMIN_TOKEN:
+            admin_data = {
+                "name": ADMIN_NAME,
+                "email": ADMIN_EMAIL,
+                "token": ADMIN_TOKEN,
+                "role": "admin",
+                "provider": "local",
+                "google_id": "",
+                "status": "active",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "last_login_at": datetime.now(timezone.utc).isoformat(),
+            }
+            return AuthOutput(
+                success=True,
+                action=action.value,
+                message="Token Administrador MARDUKA autenticado com sucesso.",
+                token=ADMIN_TOKEN,
+                role="admin",
+                user=admin_data,
+                is_valid=True,
+            ).model_dump()
+
+        # B) Consulta por Token no Redis
         if token:
             # Busca no Redis O(1)
             token_res = execute_redis({"action": "get", "key": f"auth:token:{token}"})
@@ -222,8 +245,27 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
                 is_valid=False,
             ).model_dump()
 
-        # B) Consulta por E-mail
+        # C) Consulta por E-mail
         if email:
+            if email == ADMIN_EMAIL:
+                admin_data = {
+                    "name": ADMIN_NAME,
+                    "email": ADMIN_EMAIL,
+                    "token": ADMIN_TOKEN,
+                    "role": "admin",
+                    "provider": "local",
+                    "google_id": "",
+                    "status": "active",
+                }
+                return AuthOutput(
+                    success=True,
+                    action=action.value,
+                    message=f"Usuário Administrador '{ADMIN_EMAIL}' localizado com sucesso.",
+                    token=ADMIN_TOKEN,
+                    role="admin",
+                    user=admin_data,
+                    is_valid=True,
+                ).model_dump()
             user_res = execute_redis({"action": "hgetall", "key": f"auth:user:{email}"})
             user_data = user_res.get("data") or {}
 
