@@ -47,14 +47,14 @@ def _validate_email(email: str) -> bool:
 
 
 def build_email_content(recipient_name: str, token: str, server_url: str) -> Tuple[str, str]:
-    """Gera versões em texto puro e HTML multipart para o e-mail de entrega de credenciais."""
+    """Gera versões em texto puro e HTML multipart para o e-mail de entrega de credenciais com snippets para os principais LLMs."""
     safe_name = recipient_name.strip()
     safe_url = server_url.rstrip("/")
 
     # Versão em Texto Puro
     plain_text = f"""Olá, {safe_name}!
 
-Sua chave de acesso ao MCP Server Enterprise foi gerada com sucesso.
+Sua chave de acesso ao ecossistema MCP Server Enterprise foi gerada e vinculada com sucesso.
 
 ==================================================
 🔑 SUA CHAVE BEARER (TOKEN DE ACESSO):
@@ -62,13 +62,15 @@ Sua chave de acesso ao MCP Server Enterprise foi gerada com sucesso.
 ==================================================
 
 🌐 Servidor: {safe_url}
-📖 Endpoints:
+📖 Endpoints MCP:
 - JSON-RPC 2.0: POST {safe_url}/
 - SSE: GET {safe_url}/sse
 
-COMO CONFIGURAR NO CLAUDE DESKTOP:
-Adicione ao seu claude_desktop_config.json:
+--------------------------------------------------
+📋 SNIPPETS DE CONFIGURAÇÃO PARA OS PRINCIPAIS LLMs:
+--------------------------------------------------
 
+1. 🤖 CLAUDE DESKTOP (claude_desktop_config.json):
 {{
   "mcpServers": {{
     "enterprise": {{
@@ -80,8 +82,48 @@ Adicione ao seu claude_desktop_config.json:
   }}
 }}
 
-Guarde esta chave em segurança. Ela concede acesso às ferramentas corporativas.
-Equipe MCP Server Enterprise
+2. ⚡ CURSOR AI (.cursor/mcp.json ou Cursor Settings -> MCP):
+{{
+  "mcpServers": {{
+    "enterprise": {{
+      "url": "{safe_url}",
+      "headers": {{
+        "Authorization": "Bearer {token}"
+      }}
+    }}
+  }}
+}}
+
+3. 🌊 WINDSURF / CASCADE (~/.codeium/windsurf/mcp_config.json):
+{{
+  "mcpServers": {{
+    "enterprise": {{
+      "serverUrl": "{safe_url}",
+      "headers": {{
+        "Authorization": "Bearer {token}"
+      }}
+    }}
+  }}
+}}
+
+4. 🐍 PYTHON / FRAMEWORKS DE AGENTES (LangChain, CrewAI, AutoGen, LlamaIndex):
+import httpx
+
+client = httpx.Client(
+    base_url="{safe_url}",
+    headers={{"Authorization": "Bearer {token}"}}
+)
+response = client.post("/", json={{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}})
+print(response.json())
+
+5. 💻 cURL / TERMINAL:
+curl -X POST {safe_url}/ \\
+  -H "Authorization: Bearer {token}" \\
+  -H "Content-Type: application/json" \\
+  -d '{{"jsonrpc":"2.0","id":1,"method":"tools/list"}}'
+
+Guarde esta chave em segurança. Ela concede acesso a todas as ferramentas corporativas.
+Equipe MCP Server Enterprise · MardukaSoft
 """
 
     # Versão em HTML Moderno
@@ -100,7 +142,7 @@ Equipe MCP Server Enterprise
       padding: 24px 12px;
     }}
     .container {{
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto;
       background-color: #1E293B;
       border: 1px solid rgba(255, 255, 255, 0.1);
@@ -112,11 +154,6 @@ Equipe MCP Server Enterprise
       background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
       padding: 32px 24px;
       text-align: center;
-    }}
-    .logo {{
-      width: 48px;
-      height: 48px;
-      margin-bottom: 12px;
     }}
     .title {{
       color: #FFFFFF;
@@ -166,14 +203,29 @@ Equipe MCP Server Enterprise
       display: inline-block;
       margin: 0;
     }}
-    .section-title {{
-      font-size: 14px;
-      font-weight: 600;
+    .snippet-header {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 24px;
+      margin-bottom: 8px;
+    }}
+    .badge {{
+      background-color: #334155;
+      color: #38BDF8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }}
+    .snippet-title {{
+      font-size: 13px;
+      font-weight: 700;
       color: #94A3B8;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-top: 24px;
-      margin-bottom: 8px;
     }}
     .code-block {{
       background-color: #090D16;
@@ -185,6 +237,7 @@ Equipe MCP Server Enterprise
       color: #CBD5E1;
       overflow-x: auto;
       white-space: pre;
+      line-height: 1.5;
     }}
     .footer {{
       background-color: #0F172A;
@@ -204,14 +257,18 @@ Equipe MCP Server Enterprise
     </div>
     <div class="content">
       <p class="greeting">Olá, <strong>{safe_name}</strong>!</p>
-      <p class="greeting">Sua chave de acesso ao ecossistema <strong>MCP Server Enterprise</strong> foi emitida e vinculada com sucesso à sua conta.</p>
+      <p class="greeting">Sua chave de acesso ao ecossistema <strong>MCP Server Enterprise</strong> foi emitida com sucesso.</p>
       
       <div class="token-card">
         <div class="token-label">Sua Chave Bearer (Token de Acesso)</div>
         <div class="token-value">{token}</div>
       </div>
 
-      <div class="section-title">Snippet de Configuração (Claude Desktop / Cursor)</div>
+      <!-- 1. Claude Desktop -->
+      <div class="snippet-header">
+        <span class="snippet-title">🤖 1. Claude Desktop</span>
+        <span class="badge">claude_desktop_config.json</span>
+      </div>
       <div class="code-block">{{
   "mcpServers": {{
     "enterprise": {{
@@ -222,7 +279,64 @@ Equipe MCP Server Enterprise
     }}
   }}
 }}</div>
+
+      <!-- 2. Cursor AI -->
+      <div class="snippet-header">
+        <span class="snippet-title">⚡ 2. Cursor AI</span>
+        <span class="badge">.cursor/mcp.json</span>
+      </div>
+      <div class="code-block">{{
+  "mcpServers": {{
+    "enterprise": {{
+      "url": "{safe_url}",
+      "headers": {{
+        "Authorization": "Bearer {token}"
+      }}
+    }}
+  }}
+}}</div>
+
+      <!-- 3. Windsurf / Cascade -->
+      <div class="snippet-header">
+        <span class="snippet-title">🌊 3. Windsurf / Codeium Cascade</span>
+        <span class="badge">mcp_config.json</span>
+      </div>
+      <div class="code-block">{{
+  "mcpServers": {{
+    "enterprise": {{
+      "serverUrl": "{safe_url}",
+      "headers": {{
+        "Authorization": "Bearer {token}"
+      }}
+    }}
+  }}
+}}</div>
+
+      <!-- 4. Python SDK / Agentes -->
+      <div class="snippet-header">
+        <span class="snippet-title">🐍 4. Python / LangChain / CrewAI / AutoGen</span>
+        <span class="badge">Python 3</span>
+      </div>
+      <div class="code-block">import httpx
+
+client = httpx.Client(
+    base_url="{safe_url}",
+    headers={{"Authorization": "Bearer {token}"}}
+)
+response = client.post("/", json={{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}})
+print(response.json())</div>
+
+      <!-- 5. cURL / Terminal -->
+      <div class="snippet-header">
+        <span class="snippet-title">💻 5. cURL / Terminal</span>
+        <span class="badge">Bash / Zsh / PowerShell</span>
+      </div>
+      <div class="code-block">curl -X POST {safe_url}/ \\
+  -H "Authorization: Bearer {token}" \\
+  -H "Content-Type: application/json" \\
+  -d '{{"jsonrpc":"2.0","id":1,"method":"tools/list"}}'</div>
     </div>
+
     <div class="footer">
       Esta mensagem contém credenciais sensíveis de acesso. Guarde-a em segurança.<br>
       © 2026 MCP Server Enterprise · Todos os direitos reservados.
