@@ -151,8 +151,18 @@ def send_mail(
 
 
 def run_server() -> None:
-    """Executa o servidor FastMCP no modo stdio."""
-    mcp.run()
+    """Executa o servidor FastMCP nos modos stdio ou sse."""
+    import argparse
+    parser = argparse.ArgumentParser(description="MCP Enterprise Server (FastMCP)")
+    parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio", help="Transporte de comunicação (stdio ou sse)")
+    parser.add_argument("--host", default="127.0.0.1", help="Host para o servidor SSE")
+    parser.add_argument("--port", type=int, default=8000, help="Porta para o servidor SSE")
+    args, _ = parser.parse_known_args()
+
+    if args.transport == "sse":
+        mcp.run(transport="sse", host=args.host, port=args.port)
+    else:
+        mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":

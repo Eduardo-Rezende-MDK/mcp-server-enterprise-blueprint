@@ -10,6 +10,7 @@ Documento oficial de tarefas do projeto para o servidor **`mcp-server-enterprise
 flowchart LR
     A["Fase 1: Dev Local em Python (FastMCP + Stdio)"] --> B["Fase 2: Túnel Remoto (Cloudflare Tunnel + SSE)"]
     B --> C["Fase 3: Deploy Serverless (Cloudflare Worker Python)"]
+    C --> D["Fase 4: Wizard de Onboarding (Clone, Auth & 3 Modos)"]
 ```
 
 ---
@@ -77,4 +78,53 @@ flowchart LR
   - [x] Configurar domínio customizado no `wrangler.toml`: `mcp-server-enterprise.mardukasoft.online`
   - [x] Obter a URL de produção: `https://mcp-server-enterprise.mardukasoft.online`
   - [x] Validar o handshake e as ferramentas em produção via [scripts/test_cloudflare_worker.py](../scripts/test_cloudflare_worker.py) (6/6 testes passaram)
+
+---
+
+## 🚀 Fase 4: Wizard de Onboarding & Instalador Multi-Modal (Clone, Auth & Setup)
+
+> **Propósito:** Permitir que qualquer desenvolvedor clone o repositório blueprint, valide sua licença/token via MCP online central, instale dependências automaticamente e escolha entre 3 modos de execução (Online Serverless, Local Remoto com Túnel ou Local Puro).
+
+```mermaid
+flowchart TD
+    A["Desenvolvedor Clona o Repositório"] --> B["Executa Instalador: powershell -File ./install.ps1"]
+    
+    B --> C["Etapa 1: Validação de Token & Captura de Lead"]
+    C -->|"Abre navegador / Link de Token"| D["Usuário insere Token de Acesso"]
+    D -->|"Skill: control-server-entreprise"| E["Validação Remota no MCP Oficial Cloudflare Edge"]
+    E -->|"Token Válido + Lead Registrado no Redis/Google"| F["Etapa 2: Diagnóstico de Gaps no Ambiente"]
+    E -->|"Token Inválido"| C
+    
+    F --> G{"Dependências ausentes? (Python, Node, cloudflared, venv)"}
+    G -->|"Sim"| H["Skill: cloudflare-setup-wizard + pip install"] --> I["Etapa 3: Escolha do Modo de Execução"]
+    G -->|"Não"| I
+    
+    I --> J["Opção 1: MCP Serverless Online (Cloudflare Worker 24/7)"]
+    I --> K["Opção 2: MCP Local Exposto Remoto (Python + Cloudflare Tunnel SSE)"]
+    I --> L["Opção 3: MCP Local Puro (Python FastMCP Stdio na Máquina)"]
+    
+    J --> M["Deploy com Wrangler e URL customizada pronta para qualquer LLM"]
+    K --> N["Inicialização do FastMCP + Túnel HTTPS gratuito via cloudflared"]
+    L --> O["Configuração do mcp_config.json local para IDEs"]
+```
+
+- [x] **4.1. Handshake Inicial e Validação Remota de Token (`control-server-entreprise`)**
+  - [x] Criar script de instalação interativo [install.ps1](../install.ps1) e [scripts/install_wizard.py](../scripts/install_wizard.py)
+  - [x] Implementar abertura automática do navegador ou exibição do link para geração de token do usuário
+  - [x] Realizar a chamada determinística de autenticação contra o servidor MCP oficial na Cloudflare (`https://mcp-server-enterprise.mardukasoft.online`)
+  - [x] Garantir que o backend central no Cloudflare registre e preserve o lead no Redis/Google com sigilo total (sem expor credenciais no cliente)
+- [x] **4.2. Diagnóstico de Gaps de Ambiente & Instalação Automatizada**
+  - [x] Sondar automaticamente: versão do Python (>=3.10), `.venv`, `requirements.txt`, `Node.js`, `wrangler` e `cloudflared`
+  - [x] Exibir relatório claro de status (instalado vs. ausente)
+  - [x] Prompt de confirmação: *"Deseja instalar e configurar as dependências ausentes agora?"*
+  - [x] Integrar a skill `cloudflare-setup-wizard` para instalar `cloudflared` via winget/brew e autenticar Wrangler se necessário
+- [x] **4.3. Roteamento dos 3 Modos de Execução**
+  - [x] **Modo 1 (Cloudflare Worker Serverless):** Explica disponibilidade 24/7 em qualquer LLM (ChatGPT, Claude Web, Gemini, Cursor) e automatiza `wrangler deploy` via `cloudflare-setup-wizard`
+  - [x] **Modo 2 (Local Remoto via Túnel Cloudflare):** Explica execução do código local com túnel público HTTPS seguro via `cloudflared tunnel` para conexão com LLMs online
+  - [x] **Modo 3 (Local Stdio Puro):** Instalação direta no ambiente local em Python com configuração instantânea de `mcp_config.json` para IDEs (Antigravity, Cursor, Claude Desktop)
+- [x] **4.4. Isolamento de Branches e Proteção de Segredos (Leads & Auth)**
+  - [x] Manter o repositório público `mcp-server-enterprise-blueprint` limpo de tokens ou credenciais proprietárias
+  - [x] Proteger as credenciais de Redis, Google Sheets e Tokens de Auth como *Cloudflare Worker Secrets* no servidor de produção central
+  - [x] Criar branch de desenvolvimento interno / documentação de gestão de leads privada para controle do proprietário
+
 

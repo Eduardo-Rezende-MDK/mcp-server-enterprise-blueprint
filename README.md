@@ -10,6 +10,32 @@
 
 ---
 
+## 🚀 Quick Start & Instalador Inteligente (Clone & Run em 1 Clique)
+
+Para configurar e rodar o servidor com diagnóstico automático de dependências, validação de token e seleção do modo de execução:
+
+### Windows (PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -File ./install.ps1
+```
+
+### Linux / macOS (Python 3.10+):
+```bash
+python scripts/install_wizard.py
+```
+
+O instalador conduz você deterministicamente pelas 5 etapas:
+1. **Validação de Token & Acesso:** Validação remota contra o servidor central no Cloudflare Edge (`https://mcp-server-enterprise.mardukasoft.online`).
+2. **Diagnóstico de Gaps de Ambiente:** Sondagem de Python 3.10+, `.venv`, `requirements.txt`, `Node.js`, `Wrangler` e `cloudflared`.
+3. **Instalação Automática de Dependências:** Criação de ambiente virtual e instalação dos pacotes necessários.
+4. **Seleção do Modo de Execução:**
+   - **Modo 1:** *Serverless Cloudflare Edge 24/7* (deploy serverless gratuito).
+   - **Modo 2:** *Local Remoto com Túnel Cloudflare* (`cloudflared` + SSE para conectar LLMs na nuvem).
+   - **Modo 3:** *Local Puro* (FastMCP Stdio direto na máquina para Antigravity, Cursor e Claude Desktop).
+5. **Smoke Test & Configuração de Clientes:** Validação de handshake e geração do [mcp_config.json](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/mcp_config.json).
+
+---
+
 ## 🏛️ 1. Racional de Engenharia: Camada Cognitiva vs. Determinística
 
 - **🧠 Camada Cognitiva (LLM):** Raciocínio, interpretação semântica de linguagem natural e extração de intenções do usuário (probabilístico).
