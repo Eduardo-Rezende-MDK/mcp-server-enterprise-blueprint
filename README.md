@@ -22,9 +22,9 @@ Ou executar o fluxo determinístico diretamente via terminal:
 powershell -ExecutionPolicy Bypass -File ./.agents/skills/control-server-entreprise/scripts/control.ps1 -Action install
 ```
 
-O onboarding conduz deterministicamente pelas 5 etapas:
-1. **Validação de Token & Acesso:** Validação remota contra o servidor central no Cloudflare Edge (`https://mcp-server-enterprise.mardukasoft.online`).
-2. **Diagnóstico Silencioso de Gaps:** Sondagem de Python 3.10+, `.venv`, `requirements.txt`, `Node.js`, `Wrangler` e `cloudflared`.
+O onboarding conduz deterministicamente pelas etapas:
+1. **Detecção Inicial & Opção de Reinstalação:** Sondagem de dados pré-existentes (`.venv`, `mcp_config.json`, `.env`), oferecendo limpeza/reset completo (`clean -Force`) caso o usuário deseje reinstalar do zero.
+2. **Validação de Token & Acesso:** Validação remota contra o servidor central no Cloudflare Edge (`https://mcp-server-enterprise.mardukasoft.online`).
 3. **Instalação Automática de Dependências:** Criação de ambiente virtual e instalação dos pacotes necessários.
 4. **Seleção do Modo de Execução:**
    - **Modo 1:** *Serverless Cloudflare Edge 24/7* (deploy serverless gratuito).
