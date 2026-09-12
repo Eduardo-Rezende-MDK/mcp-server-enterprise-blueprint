@@ -454,13 +454,25 @@ switch ($Action.ToLower()) {
         npx --yes wrangler deploy
     }
 
-    "logs" {
-        npx --yes wrangler tail
-    }
-
     { $_ -in @("install", "onboard") } {
-        # Executa o wizard de onboarding completo
-        & python "$ProjectRoot\scripts\install_wizard.py"
+        Show-Header "ONBOARDING & INSTALACAO GUIADA PELA SKILL"
+        Write-Host "[1/4] Verificando token..." -ForegroundColor Yellow
+        if (-not $Token) {
+            Write-Host "[INFO] Digite o Token ou obtenha em: $Endpoint" -ForegroundColor Cyan
+            $Token = Read-Host "Token de Acesso"
+        }
+        
+        Write-Host "[2/4] Verificando ambiente..." -ForegroundColor Yellow
+        & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action check_env
+
+        Write-Host "[3/4] Instalando dependencias..." -ForegroundColor Yellow
+        & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action install_deps
+
+        Write-Host "[4/4] Configurando modo de execucao (Modo: $Mode)..." -ForegroundColor Yellow
+        & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action setup_mode -Mode $Mode -Token $Token
+
+        Write-Host "[5/5] Executando smoke test..." -ForegroundColor Yellow
+        & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action test -Token $Token
     }
 }
 

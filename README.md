@@ -10,23 +10,21 @@
 
 ---
 
-## 🚀 Quick Start & Instalador Inteligente (Clone & Run em 1 Clique)
+## 🚀 Quick Start & Onboarding com Agentes de IA (Skill Integrada)
 
-Para configurar e rodar o servidor com diagnóstico automático de dependências, validação de token e seleção do modo de execução:
+Ao abrir este repositório no seu ambiente de IA (Antigravity, Cursor, Claude Code, Gemini IDE), o próprio **Agente (Camada Cognitiva)** conduz o onboarding passo a passo usando a skill [`control-server-entreprise`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/.agents/skills/control-server-entreprise/SKILL.md):
 
-### Windows (PowerShell):
+Basta solicitar ao seu agente no chat:
+> *"Instale e configure o servidor MCP Enterprise neste projeto"*
+
+Ou executar o fluxo determinístico diretamente via terminal:
 ```powershell
-powershell -ExecutionPolicy Bypass -File ./install.ps1
+powershell -ExecutionPolicy Bypass -File ./.agents/skills/control-server-entreprise/scripts/control.ps1 -Action install
 ```
 
-### Linux / macOS (Python 3.10+):
-```bash
-python scripts/install_wizard.py
-```
-
-O instalador conduz você deterministicamente pelas 5 etapas:
+O onboarding conduz deterministicamente pelas 5 etapas:
 1. **Validação de Token & Acesso:** Validação remota contra o servidor central no Cloudflare Edge (`https://mcp-server-enterprise.mardukasoft.online`).
-2. **Diagnóstico de Gaps de Ambiente:** Sondagem de Python 3.10+, `.venv`, `requirements.txt`, `Node.js`, `Wrangler` e `cloudflared`.
+2. **Diagnóstico Silencioso de Gaps:** Sondagem de Python 3.10+, `.venv`, `requirements.txt`, `Node.js`, `Wrangler` e `cloudflared`.
 3. **Instalação Automática de Dependências:** Criação de ambiente virtual e instalação dos pacotes necessários.
 4. **Seleção do Modo de Execução:**
    - **Modo 1:** *Serverless Cloudflare Edge 24/7* (deploy serverless gratuito).
