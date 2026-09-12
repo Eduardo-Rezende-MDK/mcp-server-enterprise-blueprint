@@ -11,12 +11,10 @@ RATE_LIMIT_WINDOW_SECONDS = 3600
 ADMIN_ONLY_TOOLS = {"auth", "redis", "send_mail"}
 PUBLIC_TOOLS = {"calc", "benchmark_cost", "sqlite", "hello", "discover"}
 
-MARDUKA_ADMIN_TOKEN = "MARDUKA"
-MARDUKA_ADMIN_TOKENS = {"MARDUKA", "mcp_live_3333755c29cca946c481079b3cd60625"}
 
 
 def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
-    """Valida o Bearer Token e retorna o dicionário com os dados cadastrais do usuário (incluindo role).
+    """Valida o Bearer Token e retorna o dicionário com os dados cadastrais do usuário (incluindo role) diretamente do Redis.
     
     Args:
         authorization_header: Valor do cabeçalho HTTP Authorization (ex: 'Bearer mcp_live_...')
@@ -39,17 +37,7 @@ def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
     if not token:
         return None
 
-    # 1. Token Mestre Fixo MARDUKA (Admin Supremo)
-    if token in MARDUKA_ADMIN_TOKENS:
-        return {
-            "name": "Eduardo Rezende",
-            "email": "du.rezende@gmail.com",
-            "token": token,
-            "role": "admin",
-            "status": "active",
-        }
-
-    # 2. Consulta no Redis O(1)
+    # Consulta no Redis O(1)
     try:
         from .tools.auth.handler import execute as execute_auth
         auth_res = execute_auth({"action": "get_token", "token": token})
@@ -60,16 +48,6 @@ def get_token_metadata(authorization_header: Optional[str]) -> Optional[dict]:
             return user_data
     except Exception:
         pass
-
-    # 3. Fallback perimetral para tokens mcp_live_ válidos no Edge
-    if token.startswith("mcp_live_") and len(token) >= 20:
-        return {
-            "name": "Lead User",
-            "email": "lead@mcp.io",
-            "token": token,
-            "role": "lead",
-            "status": "active",
-        }
 
     return None
 

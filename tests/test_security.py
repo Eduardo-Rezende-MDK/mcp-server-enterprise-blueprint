@@ -159,9 +159,16 @@ class TestRbacPermissions:
         for tool in PUBLIC_TOOLS:
             assert is_tool_allowed_for_role(tool, "lead") is True
 
-    def test_marduka_token_metadata_is_admin(self):
-        from mcp_server.security import get_token_metadata, MARDUKA_ADMIN_TOKEN
-        meta = get_token_metadata(f"Bearer {MARDUKA_ADMIN_TOKEN}")
+    def test_admin_token_metadata_from_redis_is_admin(self):
+        from mcp_server.security import get_token_metadata
+        admin_res = dispatch_tool("auth", {
+            "action": "set_token",
+            "name": "Admin Teste",
+            "email": "admin.security@empresa.com",
+            "role": "admin",
+        })
+        admin_token = admin_res["token"]
+        meta = get_token_metadata(f"Bearer {admin_token}")
         assert meta is not None
         assert meta["role"] == "admin"
-        assert meta["email"] == "du.rezende@gmail.com"
+        assert meta["email"] == "admin.security@empresa.com"

@@ -1,5 +1,6 @@
 """Handler determinístico para a ferramenta 'auth' com persistência em Redis."""
 
+import os
 import re
 import secrets
 from datetime import datetime, timezone
@@ -21,9 +22,14 @@ def _validate_email(email: str) -> bool:
     return bool(re.match(pattern, email.strip()))
 
 
-ADMIN_NAME = "Eduardo Rezende"
-ADMIN_EMAIL = "du.rezende@gmail.com"
-ADMIN_TOKEN = "MARDUKA"
+def _get_admin_bootstrap_credentials(input_data: AuthInput) -> tuple[str, str, str]:
+    """Obtém credenciais para o bootstrap do Admin a partir dos parâmetros de entrada ou variáveis de ambiente."""
+    name = (input_data.name or "").strip() or os.environ.get("ADMIN_NAME", "Admin Master")
+    email = (input_data.email or "").strip() or os.environ.get("ADMIN_EMAIL", "admin@empresa.com")
+    token = (input_data.token or "").strip() or os.environ.get("ADMIN_TOKEN", "")
+    if not token:
+        token = generate_secure_token()
+    return name, email, token
 
 
 def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
@@ -46,7 +52,7 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             role="lead",
         ).model_dump()
 
-    # 2. SETUP E RESET TOTAL DO REDIS (BOOTSTRAP ADMIN MARDUKA)
+    # 2. SETUP E RESET TOTAL DO REDIS (BOOTSTRAP ADMIN)
     if action in (AuthAction.SETUP, AuthAction.RESET):
         # A) Limpar todas as chaves de autenticação antigas
         keys_res = execute_redis({"action": "keys", "pattern": "auth:*"})
@@ -60,12 +66,13 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
         # Garante remoção de chaves fixas
         execute_redis({"action": "del", "key": "auth:users:index"})
 
-        # B) Criar usuário Admin Master com Token Fixo MARDUKA
+        # B) Criar usuário Admin Master no Redis
+        admin_name, admin_email, admin_token = _get_admin_bootstrap_credentials(input_data)
         now = datetime.now(timezone.utc).isoformat()
         admin_data = {
-            "name": ADMIN_NAME,
-            "email": ADMIN_EMAIL,
-            "token": ADMIN_TOKEN,
+            "name": admin_name,
+            "email": admin_email,
+            "token": admin_token,
             "role": "admin",
             "provider": "local",
             "google_id": "",
@@ -77,14 +84,14 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
         # 1. Salva o Hash do Admin no Redis
         execute_redis({
             "action": "hset",
-            "key": f"auth:user:{ADMIN_EMAIL}",
+            "key": f"auth:user:{admin_email}",
             "fields": admin_data,
         })
 
-        # 2. Salva o índice de busca rápida O(1) por Token (MARDUKA e chave legado)
+        # 2. Salva o índice de busca rápida O(1) por Token no Redis
         execute_redis({
             "action": "set",
-            "key": f"auth:token:{ADMIN_TOKEN}",
+            "key": f"auth:token:{admin_token}",
             "value": admin_data,
         })
         execute_redis({
@@ -97,14 +104,14 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
         execute_redis({
             "action": "sadd",
             "key": "auth:users:index",
-            "member": ADMIN_EMAIL,
+            "member": admin_email,
         })
 
         return AuthOutput(
             success=True,
             action=action.value,
-            message=f"Infraestrutura de autenticação resetada ({deleted_count} chaves limpas). Usuário Admin '{ADMIN_NAME}' ({ADMIN_EMAIL}) configurado e token MARDUKA ativado com sucesso.",
-            token=ADMIN_TOKEN,
+            message=f"Infraestrutura de autenticação resetada ({deleted_count} chaves limpas). Usuário Admin '{admin_name}' ({admin_email}) inicializado no Redis.",
+            token=admin_token,
             role="admin",
             user=admin_data,
             is_valid=True,
@@ -131,13 +138,12 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
                 error="E-mail inválido ou ausente",
             ).model_dump()
 
-        # Define a role: se for o email de admin ou explicitamente passado, é admin; senão é lead
-        role = input_data.role or ("admin" if email == ADMIN_EMAIL else "lead")
-        if email == ADMIN_EMAIL:
-            role = "admin"
+        # Define a role: se explicitamente passado no input (ex: 'admin' ou 'lead') usa ele, senão o padrão é 'lead'
+        admin_email_env = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+        role = input_data.role or ("admin" if (admin_email_env and email == admin_email_env) else "lead")
 
         # Token fornecido ou novo gerado automaticamente
-        token = (input_data.token or "").strip() or (ADMIN_TOKEN if email == ADMIN_EMAIL else generate_secure_token())
+        token = (input_data.token or "").strip() or generate_secure_token()
         provider = input_data.provider or "local"
         google_id = input_data.google_id or ""
         now = datetime.now(timezone.utc).isoformat()
@@ -171,7 +177,7 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
             "fields": user_data,
         })
 
-        # 2. Salva o índice de busca rápida O(1) por Token
+        # 2. Salva o índice de busca rápida O(1) por Token no Redis
         execute_redis({
             "action": "set",
             "key": f"auth:token:{token}",
@@ -199,14 +205,13 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
         token = (input_data.token or "").strip()
         email = (input_data.email or "").strip().lower()
 
-        # A) Consulta por Token
+        # A) Consulta por Token no Redis O(1)
         if token:
-            # Busca no Redis O(1)
             token_res = execute_redis({"action": "get", "key": f"auth:token:{token}"})
             user_data = token_res.get("result")
 
             if user_data and isinstance(user_data, dict) and user_data.get("status") == "active":
-                role = user_data.get("role") or ("admin" if user_data.get("email") == ADMIN_EMAIL else "lead")
+                role = user_data.get("role") or "lead"
                 return AuthOutput(
                     success=True,
                     action=action.value,
@@ -227,13 +232,13 @@ def execute(params: Dict[str, Any] | AuthInput) -> Dict[str, Any]:
                 is_valid=False,
             ).model_dump()
 
-        # B) Consulta por E-mail
+        # B) Consulta por E-mail no Redis O(1)
         if email:
             user_res = execute_redis({"action": "hgetall", "key": f"auth:user:{email}"})
             user_data = user_res.get("data") or {}
 
             if user_data and user_data.get("status") == "active":
-                role = user_data.get("role") or ("admin" if email == ADMIN_EMAIL else "lead")
+                role = user_data.get("role") or "lead"
                 return AuthOutput(
                     success=True,
                     action=action.value,

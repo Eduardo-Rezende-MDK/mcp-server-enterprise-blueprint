@@ -1,23 +1,22 @@
 # ==============================================================================
 # control.ps1 (Skill: control-server-entreprise)
-# Script 100% AUTO-CONTIDO e PORTATIL para controlar e instalar o MCP Server Enterprise.
-# Suporta: help, discover, call, status, test, deploy, logs, auth, check_env, install_deps, setup_mode, install, clean, reset
+# Script 100% AUTO-CONTIDO e PORTATIL para INFRAESTRUTURA e INSTALACAO do MCP Server Enterprise.
+# Suporta: help, auth, check_env, clean, install_deps, setup_mode, install, status, deploy, sync_secrets, create_tool
 # ==============================================================================
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "discover", "call", "invoke", "status", "test", "deploy", "logs", "auth", "check_env", "diagnose", "install_deps", "setup_mode", "install", "onboard", "clean", "reset", "uninstall")]
+    [ValidateSet("help", "status", "deploy", "auth", "check_env", "diagnose", "install_deps", "setup_mode", "install", "onboard", "clean", "reset", "uninstall", "create_tool", "scaffold", "sync_secrets", "secrets")]
     [string]$Action = "help",
 
     [Parameter(Position = 1)]
     [string]$Tool = "",
 
-    [Parameter(Position = 2)]
-    [string]$ArgsJson = "{}",
+    [string]$Desc = "",
 
     [string]$Token = "",
 
-    [string]$Mode = "3",
+    [string]$Mode = "",
 
     [switch]$Reinstall,
 
@@ -62,12 +61,12 @@ function Show-Header([string]$Title) {
 }
 
 function Show-Help() {
-    Show-Header "MANUAL DE USO E COMANDOS DISPONIVEIS"
+    Show-Header "MANUAL DE USO E COMANDOS DE INFRAESTRUTURA"
     Write-Host "Endpoint Ativo: $Endpoint" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "COMANDOS DISPONIVEIS PARA AGENTES DE IA (SKILL):" -ForegroundColor Cyan
+    Write-Host "ACOES DETERMINISTICAS DE INFRAESTRUTURA & ONBOARDING:" -ForegroundColor Cyan
     Write-Host "  1. auth" -ForegroundColor White
-    Write-Host "     Valida remotamente o Bearer Token no Cloudflare Edge." -ForegroundColor Gray
+    Write-Host "     Valida remotamente o Bearer Token no Cloudflare Edge durante setup." -ForegroundColor Gray
     Write-Host "     Exemplo: powershell -File control.ps1 -Action auth -Token 'mcp_live_...'" -ForegroundColor Green
     Write-Host ""
     Write-Host "  2. check_env (ou diagnose)" -ForegroundColor White
@@ -75,36 +74,36 @@ function Show-Help() {
     Write-Host "     Exemplo: powershell -File control.ps1 -Action check_env -JsonOutput" -ForegroundColor Green
     Write-Host ""
     Write-Host "  3. clean (ou reset, uninstall)" -ForegroundColor White
-    Write-Host "     Limpa e reseta o ambiente (.venv, mcp_config.json, .env e caches) para reinstalacao limpa." -ForegroundColor Gray
+    Write-Host "     Limpa e reseta o ambiente (.venv, mcp_config.json, .env, .dev.vars, .wrangler e logout) para reinstalacao limpa." -ForegroundColor Gray
     Write-Host "     Exemplo: powershell -File control.ps1 -Action clean -Force" -ForegroundColor Green
     Write-Host ""
     Write-Host "  4. install_deps" -ForegroundColor White
-    Write-Host "     Cria .venv e instala dependencias do requirements.txt automaticamente." -ForegroundColor Gray
+    Write-Host "     Cria .venv e instala dependencias do requirements.txt e pacote editavel." -ForegroundColor Gray
     Write-Host "     Exemplo: powershell -File control.ps1 -Action install_deps" -ForegroundColor Green
     Write-Host ""
     Write-Host "  5. setup_mode" -ForegroundColor White
-    Write-Host "     Configura o mcp_config.json para: 1 (Serverless), 2 (Túnel Cloudflare) ou 3 (Local Stdio)." -ForegroundColor Gray
+    Write-Host "     Configura o mcp_config.json para: 1 (Serverless), 2 (Túnel Cloudflare) ou 3 (Local Stdio) - sem default." -ForegroundColor Gray
     Write-Host "     Exemplo: powershell -File control.ps1 -Action setup_mode -Mode 2 -Token 'mcp_live_...'" -ForegroundColor Green
     Write-Host ""
-    Write-Host "  6. discover" -ForegroundColor White
-    Write-Host "     Consulta o catalogo dinamico de ferramentas e schemas no Cloudflare." -ForegroundColor Gray
-    Write-Host "     Exemplo: powershell -File control.ps1 -Action discover" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  7. call (ou invoke)" -ForegroundColor White
-    Write-Host "     Invoca uma ferramenta deterministica via JSON-RPC 2.0." -ForegroundColor Gray
-    Write-Host "     Exemplo: powershell -File control.ps1 -Action call -Tool hello -ArgsJson '{""name"": ""Eduardo""}'" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  8. status" -ForegroundColor White
-    Write-Host "     Verifica a saude e metadados da instancia online no Cloudflare Edge." -ForegroundColor Gray
+    Write-Host "  6. status" -ForegroundColor White
+    Write-Host "     Verifica a saude HTTP e metadados da instancia online no Cloudflare Edge." -ForegroundColor Gray
     Write-Host "     Exemplo: powershell -File control.ps1 -Action status" -ForegroundColor Green
     Write-Host ""
-    Write-Host "  9. test" -ForegroundColor White
-    Write-Host "     Executa o smoke test completo (validacao remota ponta a ponta)." -ForegroundColor Gray
-    Write-Host "     Exemplo: powershell -File control.ps1 -Action test" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  10. deploy" -ForegroundColor White
+    Write-Host "  7. deploy" -ForegroundColor White
     Write-Host "     Roda pytest e wrangler deploy no Edge (requer repo fonte)." -ForegroundColor Gray
     Write-Host "     Exemplo: powershell -File control.ps1 -Action deploy" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  8. create_tool (ou scaffold)" -ForegroundColor White
+    Write-Host "     Gera arquivos para uma nova ferramenta modular deterministica." -ForegroundColor Gray
+    Write-Host "     Exemplo: powershell -File control.ps1 -Action create_tool -Tool cotacao_dolar -Desc 'Consulta cotacao'" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  9. sync_secrets (ou secrets)" -ForegroundColor White
+    Write-Host "     Sincroniza segredos de .dev.vars/.env diretamente para o Cloudflare Workers." -ForegroundColor Gray
+    Write-Host "     Exemplo: powershell -File control.ps1 -Action sync_secrets" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  10. install (ou onboard)" -ForegroundColor White
+    Write-Host "     Executa esteira completa guiada de onboarding e instalacao." -ForegroundColor Gray
+    Write-Host "     Exemplo: powershell -File control.ps1 -Action install -Mode 1 -Token 'mcp_live_...'" -ForegroundColor Green
     Write-Host "==================================================================" -ForegroundColor Cyan
 }
 
@@ -316,14 +315,37 @@ switch ($Action.ToLower()) {
             $removedItems += "mcp_config.json"
         }
 
-        # 4. Backup e Preservação de .env
+        # 4. Remover e resetar arquivos de segredos locais (.env e .dev.vars)
         $envFile = "$ProjectRoot\.env"
         if (Test-Path $envFile) {
             Copy-Item -Path $envFile -Destination "$ProjectRoot\.env.bak" -Force -ErrorAction SilentlyContinue
-            Write-Host "[INFO] Backup de seguranca criado: .env.bak" -ForegroundColor Cyan
+            Remove-Item -Path $envFile -Force -ErrorAction SilentlyContinue
+            Write-Host "[INFO] Arquivo .env removido (backup salvo em .env.bak)." -ForegroundColor Cyan
+            $removedItems += ".env"
         }
 
-        # 5. Limpar caches Python
+        $devVars = "$ProjectRoot\.dev.vars"
+        if (Test-Path $devVars) {
+            Copy-Item -Path $devVars -Destination "$ProjectRoot\.dev.vars.bak" -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $devVars -Force -ErrorAction SilentlyContinue
+            Write-Host "[INFO] Arquivo .dev.vars removido (backup salvo em .dev.vars.bak)." -ForegroundColor Cyan
+            $removedItems += ".dev.vars"
+        }
+
+        # 5. Deslogar do Cloudflare Wrangler e limpar credenciais locais
+        Write-Host "[INFO] Deslogando do Cloudflare Wrangler e limpando credenciais..." -ForegroundColor Yellow
+        try {
+            npx --yes wrangler logout 2>$null | Out-Null
+            $removedItems += "wrangler_logout"
+        } catch {}
+
+        $wranglerDir = "$ProjectRoot\.wrangler"
+        if (Test-Path $wranglerDir) {
+            Remove-Item -Path $wranglerDir -Recurse -Force -ErrorAction SilentlyContinue
+            $removedItems += ".wrangler"
+        }
+
+        # 6. Limpar caches Python
         try {
             Get-ChildItem -Path $ProjectRoot -Filter "__pycache__" -Recurse -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
             Get-ChildItem -Path $ProjectRoot -Filter ".pytest_cache" -Recurse -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -335,10 +357,10 @@ switch ($Action.ToLower()) {
             [ordered]@{
                 cleaned = $true
                 removed = $removedItems
-                message = "Ambiente limpo e resetado com sucesso."
+                message = "Ambiente limpo, segredos removidos e sessao Cloudflare encerrada com sucesso."
             } | ConvertTo-Json -Compress
         } else {
-            Write-Host "[OK] Ambiente resetado com sucesso! Itens removidos: $($removedItems -join ', ')" -ForegroundColor Green
+            Write-Host "[OK] Ambiente resetado com sucesso! Itens removidos/resetados: $($removedItems -join ', ')" -ForegroundColor Green
         }
     }
 
@@ -362,8 +384,23 @@ switch ($Action.ToLower()) {
         Show-Header "CONFIGURACAO DO MODO DE EXECUCAO"
         $mcpConfigPath = "$ProjectRoot\mcp_config.json"
         
+        # Exige escolha explícita do modo se não informado
+        if (-not $Mode) {
+            Write-Host ""
+            Write-Host "Selecione obrigatoriamente o modo de execucao:" -ForegroundColor Cyan
+            Write-Host "  [1] ☁️ Serverless Edge (24/7 no Cloudflare Workers)" -ForegroundColor Yellow
+            Write-Host "  [2] 🚇 Tunel Remoto HTTPS (Python local + Cloudflare Tunnel)" -ForegroundColor Yellow
+            Write-Host "  [3] ⚡ Local Stdio Puro (Python local via .venv)" -ForegroundColor Yellow
+            Write-Host ""
+            $Mode = Read-Host "Digite o numero do modo desejado (1, 2 ou 3)"
+        }
+
         # Modo 1: Serverless Cloudflare Edge
-        if ($Mode -in @("1", "serverless")) {
+        if ($Mode -in @("1", "serverless", "edge")) {
+            if (-not $Token) {
+                Write-Host "[ERRO] Modo 1 (Serverless) requer o parametro -Token (Bearer Token do Cloudflare)." -ForegroundColor Red
+                exit 1
+            }
             $cfg = @{
                 mcpServers = @{
                     "mcp-server-enterprise" = @{
@@ -431,7 +468,7 @@ switch ($Action.ToLower()) {
             Write-Host "[OK] Tunel ativo e mcp_config.json configurado automaticamente: $sseUrl" -ForegroundColor Green
         }
         # Modo 3: Local Stdio Puro
-        else {
+        elseif ($Mode -in @("3", "stdio", "local")) {
             $pyExe = "$ProjectRoot\.venv\Scripts\python.exe"
             if (-not (Test-Path $pyExe)) {
                 $pyExe = "python"
@@ -448,22 +485,8 @@ switch ($Action.ToLower()) {
             $cfg | ConvertTo-Json -Depth 5 | Set-Content -Path $mcpConfigPath -Encoding UTF8
             Write-Host "[OK] mcp_config.json configurado para Local Stdio Puro ($pyExe)!" -ForegroundColor Green
         }
-    }
-
-    "discover" {
-        Show-Header "DESCOBERTA DINAMICA DE FERRAMENTAS E SCHEMAS"
-        try {
-            $res = Invoke-McpRpc -Method "tools/call" -Params @{ name = "discover"; arguments = @{} } -AuthToken $Token
-            $cat = $res.Data.result.structuredContent
-            Write-Host "Total de Ferramentas Registradas: $($cat.total)" -ForegroundColor Cyan
-            foreach ($t in $cat.tools) {
-                Write-Host ""
-                Write-Host " Ferramenta: $($t.name)" -ForegroundColor Yellow
-                Write-Host "   Descricao : $($t.description)" -ForegroundColor White
-                Write-Host "   Resumo    : $($t.documentation.summary)" -ForegroundColor Gray
-            }
-        } catch {
-            Write-Host "[ERRO] Falha ao consultar discover: $_" -ForegroundColor Red
+        else {
+            Write-Host "[ERRO] Modo de execucao '$Mode' invalido. Escolha obrigatoriamente entre: 1 (Serverless Edge), 2 (Tunel HTTPS) ou 3 (Local Stdio)." -ForegroundColor Red
             exit 1
         }
     }
@@ -481,44 +504,6 @@ switch ($Action.ToLower()) {
             Write-Host "[ERRO] Nao foi possivel conectar ao servidor: $_" -ForegroundColor Red
             exit 1
         }
-    }
-
-    { $_ -in @("call", "invoke") } {
-        Show-Header "INVOCACAO DETERMINISTICA DE TOOL"
-        if (-not $Tool) {
-            Write-Host "[ERRO] Especifique a ferramenta com: -Tool <nome>" -ForegroundColor Red
-            exit 1
-        }
-        $parsedArgs = Parse-ArgsJson -Raw $ArgsJson
-        try {
-            $res = Invoke-McpRpc -Method "tools/call" -Params @{ name = $Tool; arguments = $parsedArgs } -AuthToken $Token
-            if ($res.Data.result.structuredContent) {
-                $res.Data.result.structuredContent | ConvertTo-Json -Depth 10 | Write-Host -ForegroundColor Green
-            } elseif ($res.Data.result.content) {
-                $res.Data.result.content | ConvertTo-Json -Depth 10 | Write-Host -ForegroundColor Green
-            }
-        } catch {
-            Write-Host "[ERRO] Falha na chamada de '$Tool': $_" -ForegroundColor Red
-            exit 1
-        }
-    }
-
-    "test" {
-        Show-Header "SMOKE TEST PROTOCOLAR COMPLETO (AUTO-CONTIDO)"
-        Write-Host "[1/2] Testando conexao e metadados no Edge..." -ForegroundColor Yellow
-        $headers = @{ "Accept" = "application/json" }
-        $info = Invoke-RestMethod -Uri $Endpoint -Method Get -Headers $headers
-        Write-Host "  -> OK: status=$($info.status), tools=$($info.tools_count)" -ForegroundColor Green
-
-        Write-Host "[2/2] Testando chamada deterministica (calc: 150 / 25)..." -ForegroundColor Yellow
-        $calcRes = Invoke-McpRpc -Method "tools/call" -Params @{
-            name      = "calc"
-            arguments = @{ valor1 = 150; valor2 = 25; operacao = "/" }
-        } -AuthToken $Token
-        $calcOutput = $calcRes.Data.result.structuredContent
-        Write-Host "  -> OK: formula='$($calcOutput.formula)', resultado=$($calcOutput.resultado)" -ForegroundColor Green
-        Write-Host ""
-        Write-Host "[SUCESSO] Servidor MCP Enterprise validado e operacional!" -ForegroundColor Green
     }
 
     "deploy" {
@@ -560,11 +545,83 @@ switch ($Action.ToLower()) {
         Write-Host "[3/5] Instalando dependencias..." -ForegroundColor Yellow
         & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action install_deps
 
-        Write-Host "[4/5] Configurando modo de execucao (Modo: $Mode)..." -ForegroundColor Yellow
+        Write-Host ""
+        if (-not $Mode) {
+            Write-Host "[4/5] Selecao do Modo de Execucao (Obrigatorio):" -ForegroundColor Yellow
+            Write-Host "  [1] ☁️ Serverless Edge (24/7 no Cloudflare Workers)" -ForegroundColor Cyan
+            Write-Host "  [2] 🚇 Tunel Remoto HTTPS (Python local + Cloudflare Tunnel)" -ForegroundColor Cyan
+            Write-Host "  [3] ⚡ Local Stdio Puro (Python local via .venv)" -ForegroundColor Cyan
+            $Mode = Read-Host "Escolha o modo de execucao (1, 2 ou 3)"
+        } else {
+            Write-Host "[4/5] Configurando modo de execucao selecionado (Modo: $Mode)..." -ForegroundColor Yellow
+        }
         & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action setup_mode -Mode $Mode -Token $Token
 
-        Write-Host "[5/5] Executando smoke test..." -ForegroundColor Yellow
-        & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action test -Token $Token
+        Write-Host "[5/5] Verificando status da instancia online..." -ForegroundColor Yellow
+        & powershell -ExecutionPolicy Bypass -File $PSCommandPath -Action status
+    }
+
+    { $_ -in @("create_tool", "scaffold") } {
+        Show-Header "CRIACAO DE FERRAMENTA DETERMINISTICA (SCAFFOLD)"
+        if (-not $Tool) {
+            Write-Host "[ERRO] Especifique o nome da ferramenta com: -Tool <nome_em_snake_case>" -ForegroundColor Red
+            exit 1
+        }
+        try {
+            if ($Desc) {
+                python -m src.mcp_server.scaffold $Tool -d "$Desc"
+            } else {
+                python -m src.mcp_server.scaffold $Tool
+            }
+        } catch {
+            Write-Host "[ERRO] Falha ao criar ferramenta: $_" -ForegroundColor Red
+            exit 1
+        }
+    }
+
+    { $_ -in @("sync_secrets", "secrets") } {
+        Show-Header "SINCRONIZACAO DE SEGREDOS -> CLOUDFLARE WORKERS"
+        $envVars = @{}
+        $devVarsPath = "$ProjectRoot\.dev.vars"
+        $envPath = "$ProjectRoot\.env"
+
+        $targetFile = $null
+        if (Test-Path $devVarsPath) { $targetFile = $devVarsPath }
+        elseif (Test-Path $envPath) { $targetFile = $envPath }
+
+        if (-not $targetFile) {
+            Write-Host "[ERRO] Nenhum arquivo .dev.vars ou .env encontrado." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "Carregando segredos de: $targetFile" -ForegroundColor Cyan
+        $lines = Get-Content $targetFile
+        foreach ($line in $lines) {
+            $trimmed = $line.Trim()
+            if (-not $trimmed -or $trimmed.StartsWith("#") -or -not ($trimmed.Contains("="))) { continue }
+            $parts = $trimmed.Split("=", 2)
+            $k = $parts[0].Trim()
+            $v = $parts[1].Trim().Trim('"').Trim("'")
+            if ($k -and $v) { $envVars[$k] = $v }
+        }
+
+        $sensitiveKeys = @("REDIS_URL", "GMAIL_USER", "GMAIL_APP_PASSWORD", "RESEND_API_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "ADMIN_TOKEN", "ADMIN_EMAIL", "ADMIN_NAME")
+        foreach ($k in $sensitiveKeys) {
+            if ($envVars.ContainsKey($k)) {
+                $val = $envVars[$k]
+                Write-Host " -> Sincronizando secret [$k]..." -ForegroundColor Yellow
+                try {
+                    $val | npx wrangler secret put $k
+                    Write-Host "    [OK] Secret [$k] sincronizada!" -ForegroundColor Green
+                } catch {
+                    Write-Host "    [ERRO] Falha ao enviar [$k]: $_" -ForegroundColor Red
+                }
+            } else {
+                Write-Host " -> [$k]: nao encontrado no arquivo local, ignorando." -ForegroundColor Gray
+            }
+        }
+        Write-Host ""
+        Write-Host "[SUCESSO] Sincronizacao de segredos concluida!" -ForegroundColor Green
     }
 }
 

@@ -30,7 +30,7 @@ Este arquivo contém as diretrizes e regras obrigatórias que todos os agentes d
 
 ## 5. Protocolo de Encerramento (Alias: "tarefa concluida")
 Sempre que o usuário enviar o comando ou alias **"tarefa concluida"** (ou variações como *"tarefa finalizada"*, *"concluir tarefa"*):
-1. **Sincronização de Documentação:** Atualizar e marcar como concluídas todas as tarefas e status nos arquivos `.md` relevantes em aberto ou afetados pela sessão (ex: `docs/mcp-python-fastmcp-plan.md`, `DEV/livre.md`, etc.).
+1. **Sincronização de Documentação:** Atualizar e marcar como concluídas todas as tarefas e status nos arquivos `.md` relevantes em aberto ou afetados pela sessão (ex: `docs/mcp-python-fastmcp-plan.md`, `livre.md`, etc.).
 2. **Validação de Qualidade:** Executar a suíte de testes (`pytest`) para garantir integridade e 100% de aprovação.
 3. **Commit Semântico:** Realizar `git add .` e `git commit` com uma mensagem descritiva e padronizada em português.
 4. **Encerramento da Sessão:** Apresentar um resumo executivo claro do que foi entregue e finalizar a interação.
@@ -46,3 +46,12 @@ Sempre que o usuário enviar o comando ou alias **"comparativo_token_cost"** (ou
    - **Tabela Comparativa de Tokens:** Tokens de Prompt (Entrada), Tokens de Raciocínio (Thinking/CoT), Tokens de Saída (Output), Total de Tokens, Risco de Alucinação e Latência.
    - **Cálculo da Economia Real:** Demonstrar a redução percentual de tokens obtida pela abordagem FastMCP (~80% a 95%).
    - **Diagrama Mermaid:** Fluxo comparativo com rótulos de nós entre aspas duplas.
+
+
+---
+
+## 7. Não execute teste de forma massiva apos qualquer prompt do usuário
+- **Escopo Direto:** Excute rotinas de teste somente quando explicitamente solicitado pelo usuário, ou caso seja necessario para encontrar um erro.  
+
+
+---

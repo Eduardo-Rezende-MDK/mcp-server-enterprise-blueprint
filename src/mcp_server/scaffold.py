@@ -1,10 +1,4 @@
-"""CLI Scaffolding Tool for MCP Enterprise Server.
-
-Gera uma nova ferramenta determinística a partir do template canônico em segundos.
-
-Uso:
-    python scripts/create_tool.py <tool_name> [--desc "Descrição da ferramenta"]
-"""
+"""Scaffolding and Generator for MCP Enterprise Tools."""
 
 import argparse
 import re
@@ -26,8 +20,7 @@ def create_tool(tool_name: str, description: str | None = None) -> Path:
             f"Nome inválido '{tool_name}'. Utilize apenas letras minúsculas, números e sublinhados (ex: cotacao_dolar)."
         )
 
-    root_dir = Path(__file__).resolve().parent.parent
-    tools_dir = root_dir / "src" / "mcp_server" / "tools"
+    tools_dir = Path(__file__).resolve().parent / "tools"
     template_dir = tools_dir / "_template"
     target_dir = tools_dir / tool_name
 

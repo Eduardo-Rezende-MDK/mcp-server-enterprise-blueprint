@@ -13,12 +13,17 @@ def test_auth_token_generator():
 
 
 def test_auth_setup():
-    """Valida o handshake de setup e bootstrap do admin MARDUKA."""
-    res = dispatch_tool("auth", {"action": "setup"})
+    """Valida o handshake de setup e bootstrap do admin com persistência em Redis."""
+    res = dispatch_tool("auth", {
+        "action": "setup",
+        "name": "Admin Teste",
+        "email": "admin@teste.com",
+        "token": "mcp_admin_test_12345",
+    })
     assert res["success"] is True
     assert res["role"] == "admin"
-    assert res["token"] in ("MARDUKA", "mcp_live_3333755c29cca946c481079b3cd60625")
-    assert res["user"]["email"] == "du.rezende@gmail.com"
+    assert res["token"] == "mcp_admin_test_12345"
+    assert res["user"]["email"] == "admin@teste.com"
     assert res["user"]["role"] == "admin"
 
 

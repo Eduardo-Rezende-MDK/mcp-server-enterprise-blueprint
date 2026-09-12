@@ -17,10 +17,14 @@ Este diretório serve como o **blueprint padrão** para criação de novas ferra
 
 ## 🚀 Como Criar uma Nova Tool em 1 Segundo
 
-### Opção 1: Via CLI (Recomendado)
-Execute a partir da raiz do projeto:
+### Opção 1: Via Skill / CLI (Recomendado)
+Execute a partir da raiz do projeto ou via skill:
 ```powershell
-python scripts/create_tool.py <nome_da_tool> --desc "Descrição sucinta da ferramenta"
+# Via Skill control-server-entreprise:
+powershell -File .\.agents\skills\control-server-entreprise\scripts\control.ps1 -Action create_tool -Tool <nome_da_tool> -Desc "Descrição da ferramenta"
+
+# Ou via módulo Python nativo:
+python -m mcp_server.scaffold <nome_da_tool> --desc "Descrição da ferramenta"
 ```
 
 ### Opção 2: Manualmente
