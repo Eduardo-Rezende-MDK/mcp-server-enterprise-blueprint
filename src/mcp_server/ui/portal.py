@@ -8,7 +8,8 @@ from ..registry import dispatch_tool
 def get_portal_html(google_client_id: str = "") -> str:
     """Retorna o template HTML da Landing Page de autenticação passwordless e captura de leads."""
     import os
-    client_id = (google_client_id or os.environ.get("GOOGLE_CLIENT_ID", "")).strip()
+    default_client_id = "<GOOGLE_CLIENT_ID>.apps.googleusercontent.com"
+    client_id = (google_client_id or os.environ.get("GOOGLE_CLIENT_ID", default_client_id)).strip()
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>

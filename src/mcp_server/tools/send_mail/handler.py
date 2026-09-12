@@ -395,7 +395,7 @@ async def execute_async(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any
         if js_fetch is not None:
             try:
                 import json
-                sender_email = os.environ.get("RESEND_FROM", "MCP Enterprise <onboarding@resend.dev>").strip()
+                sender_email = os.environ.get("RESEND_FROM", "MCP Server Enterprise <acesso@mardukasoft.online>").strip()
                 payload_str = json.dumps({
                     "from": sender_email,
                     "to": [to_email],
@@ -494,7 +494,7 @@ def execute(params: Dict[str, Any] | SendMailInput) -> Dict[str, Any]:
             import json
             import urllib.error
             import urllib.request
-            sender_email = os.environ.get("RESEND_FROM", "MCP Enterprise <onboarding@resend.dev>").strip()
+            sender_email = os.environ.get("RESEND_FROM", "MCP Server Enterprise <acesso@mardukasoft.online>").strip()
             payload = json.dumps({
                 "from": sender_email,
                 "to": [to_email],

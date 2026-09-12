@@ -143,15 +143,16 @@ class SendMailOutput(BaseModel):
   - [x] `handler.py`: Emissão de token criptográfico (`mcp_live_...`) e persistência determinística de **Nome e E-mail** no Hash `auth:user:{email}`, chave de acesso rápido $O(1)$ `auth:token:{token}` e Set `auth:users:index`.
   - [x] `meta.py` e `__init__.py`: Metadados e registro automático no catálogo FastMCP.
   - [x] Cobertura de testes unitários em [`tests/test_auth_tool.py`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/tests/test_auth_tool.py) com 100% de aprovação.
-- [x] **Task 5.4 — Implementação da Tool `send_mail` via Gmail (Concluído ✅):**
+- [x] **Task 5.4 — Implementação da Tool `send_mail` via Resend API & Gmail (Concluído ✅):**
   - [x] `schema.py`: Contratos `SendMailInput` e `SendMailOutput`.
-  - [x] `handler.py`: Geração de e-mail multipart (HTML responsivo moderno + texto puro) com suporte a **Gmail SMTP SSL** (`smtp.gmail.com:465`) e tratamento estrito de erros sem mascaramento.
+  - [x] `handler.py`: Geração de e-mail multipart moderno com suporte duplo: **Resend REST API (HTTPS)** no Edge Worker e fallback **Gmail SMTP SSL**, com envio assíncrono nativo (`execute_async`) via `js.fetch`.
   - [x] `meta.py` e `__init__.py`: Metadados, documentação estendida e registro no FastMCP.
   - [x] Cobertura de testes unitários em [`tests/test_send_mail_tool.py`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/tests/test_send_mail_tool.py) com 100% de aprovação.
-- [x] **Task 5.5 — Integração Google OAuth2 & Handlers no Edge (`src/entry.py`) (Concluído ✅):**
-  - [x] Rota `POST /api/auth/login` (fluxo e-mail/nome $\rightarrow$ `auth.set_token` $\rightarrow$ `send_mail`).
-  - [x] Rota `POST /api/auth/google` (fluxo de autenticação social com Google).
+- [x] **Task 5.5 — Integração Google OAuth2 GIS & Handlers no Edge (`src/entry.py`) (Concluído ✅):**
+  - [x] Rota `POST /api/auth/login` (fluxo e-mail/nome $\rightarrow$ `auth.set_token` $\rightarrow$ `send_mail` assíncrono).
+  - [x] Rota `POST /api/auth/google` (fluxo de autenticação social com Google Identity Services oficial).
   - [x] Negociação de conteúdo `Accept: text/html` para servir a interface web na raiz `GET /`.
   - [x] Validação dinâmica de Bearer Tokens no perímetro via `auth.get_token()` no Redis.
+  - [x] Segurança perimetral com zero-leak de tokens na interface pública e no payload REST.
 - [x] **Task 5.6 — Suíte de Testes Integrada (`pytest`) (Concluído ✅):**
-  - [x] 73 testes automatizados cobrindo discovery, tools, redis, auth, send_mail, security e portal UI com 100% de aprovação.
+  - [x] 74 testes automatizados cobrindo discovery, tools, redis, auth, send_mail, security e portal UI com 100% de aprovação.

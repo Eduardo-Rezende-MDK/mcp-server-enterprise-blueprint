@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://mcp-server-enterprise.mardukasoft.online",
       "headers": {
-        "Authorization": "Bearer mcp_live_test_123456789"
+        "Authorization": "Bearer mcp_live_00dd6540d506e4bcfdeb9ae2a6a0b06a"
       }
     }
   }

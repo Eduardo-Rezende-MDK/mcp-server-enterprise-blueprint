@@ -314,7 +314,7 @@ flowchart TD
 ### 🔐 Fase 5: Portal Web, Autenticação e Gestão de Tokens (Concluída ✅)
 > *Especificação Técnica Completa:* [docs/portal-web-lead-capture.md](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/docs/portal-web-lead-capture.md)
 - [x] **Task 5.1 — Template Visual HTML/CSS (Concluído ✅):**
-  - [x] Template de autenticação em [`DEV/LP/auth.html`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/DEV/LP/auth.html).
+  - [x] Template de autenticação em [`src/mcp_server/ui/portal.py`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/src/mcp_server/ui/portal.py) e [`DEV/LP/auth.html`](file:///c:/Users/rezen/Documents/GitHub/mcp-server-enterprise-blueprint/DEV/LP/auth.html).
 - [x] **Task 5.2 — Implementação da Tool `redis` & Conexão Edge (Concluído ✅):**
   - [x] Gerenciador de conexão com suporte híbrido: **Upstash REST API** para Cloudflare Workers + **In-Memory Engine** para testes locais.
   - [x] Suporte determinístico a `PING` (handshake e telemetria de latência), `GET`, `SET` (com `ex`/TTL), `DEL`, `EXISTS`, `EXPIRE`, `TTL`, `KEYS`, `HSET`, `HGET`, `HGETALL`, `HDEL`, `SADD`, `SMEMBERS`.
@@ -322,10 +322,12 @@ flowchart TD
 - [x] **Task 5.3 — Implementação da Tool `auth` com Backend Redis (Concluído ✅):**
   - [x] Ações `setup`, `token_generator`, `set_token`, `get_token` e persistência de **Nome e E-mail** nas chaves `auth:user:{email}`, `auth:token:{token}` e `auth:users:index`.
   - [x] Validação dinâmica de Bearer Tokens integrada na guarda perimetral `security.py`.
-- [x] **Task 5.4 — Implementação da Tool `send_mail` via Gmail (Concluído ✅):**
-  - [x] Disparo transacional de e-mails em HTML e texto puro com entrega de credenciais via Gmail SMTP e tratamento estrito de erros (sem falsos positivos).
-- [x] **Task 5.5 — Integração no Edge Worker & Google OAuth2 (`src/entry.py`) (Concluído ✅):**
+- [x] **Task 5.4 — Implementação da Tool `send_mail` via Resend API & Gmail (Concluído ✅):**
+  - [x] Disparo transacional de e-mails em HTML e texto puro via **Resend REST API (HTTPS)** no Edge e **Gmail SMTP SSL**, com suporte assíncrono nativo (`execute_async`) via `js.fetch`.
+- [x] **Task 5.5 — Integração no Edge Worker & Google OAuth2 GIS (`src/entry.py`) (Concluído ✅):**
   - [x] Servir interface em `GET /` com negociação de conteúdo `Accept: text/html` e endpoints `POST /api/auth/login` e `POST /api/auth/google`.
+  - [x] Integração do SDK oficial Google Identity Services (GIS).
   - [x] Validação dinâmica de Bearer Tokens no perímetro via `auth.get_token()` no Redis.
+  - [x] Segurança perimetral com zero-leak de tokens na interface pública e no payload REST.
 - [x] **Task 5.6 — Suíte de Testes Integrada (`pytest`) (Concluído ✅):**
-  - [x] 73 testes automatizados cobrindo todas as tools, autenticação, redis, gmail (sucesso e falhas SMTP) e portal UI com 100% de aprovação.
+  - [x] 74 testes automatizados cobrindo todas as tools, autenticação, redis, envio de e-mails e portal UI com 100% de aprovação.
