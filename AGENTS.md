@@ -51,7 +51,6 @@ Sempre que o usuário enviar o comando ou alias **"comparativo_token_cost"** (ou
 ---
 
 ## 7. Não execute teste de forma massiva apos qualquer prompt do usuário
-- **Escopo Direto:** Excute rotinas de teste somente quando explicitamente solicitado pelo usuário, ou caso seja necessario para encontrar um erro.  
-
+- **Escopo Direto:** Execute rotinas de teste somente quando explicitamente solicitado pelo usuário, ou caso seja necessário para encontrar um erro.
 
 ---
